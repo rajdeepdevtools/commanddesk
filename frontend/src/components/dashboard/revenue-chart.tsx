@@ -12,21 +12,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const data = [
-  { name: "Jan", revenue: 1850000, expenses: 1200000 },
-  { name: "Feb", revenue: 2200000, expenses: 1350000 },
-  { name: "Mar", revenue: 1950000, expenses: 1280000 },
-  { name: "Apr", revenue: 2650000, expenses: 1500000 },
-  { name: "May", revenue: 2400000, expenses: 1420000 },
-  { name: "Jun", revenue: 2850000, expenses: 1650000 },
-  { name: "Jul", revenue: 3100000, expenses: 1800000 },
-  { name: "Aug", revenue: 2950000, expenses: 1750000 },
-  { name: "Sep", revenue: 3400000, expenses: 1900000 },
-  { name: "Oct", revenue: 3200000, expenses: 1850000 },
-  { name: "Nov", revenue: 3650000, expenses: 2000000 },
-  { name: "Dec", revenue: 3800000, expenses: 2100000 },
-];
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -50,11 +35,21 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-interface RevenueChartProps {
-  className?: string;
+export interface RevenuePoint {
+  name: string;
+  revenue: number;
+  expenses: number;
 }
 
-export function RevenueChart({ className }: RevenueChartProps) {
+interface RevenueChartProps {
+  className?: string;
+  data?: RevenuePoint[];
+  isLoading?: boolean;
+}
+
+export function RevenueChart({ className, data = [], isLoading }: RevenueChartProps) {
+  const hasData = data.some((point) => point.revenue > 0 || point.expenses > 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -65,7 +60,9 @@ export function RevenueChart({ className }: RevenueChartProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Revenue Overview</h3>
-          <p className="text-sm text-muted-foreground">Monthly revenue vs expenses</p>
+          <p className="text-sm text-muted-foreground">
+            Paid invoices vs expenses, last 12 months
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -79,8 +76,20 @@ export function RevenueChart({ className }: RevenueChartProps) {
         </div>
       </div>
       <div className="h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="h-full w-full animate-pulse rounded-xl bg-muted" />
+          </div>
+        ) : !hasData ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <p className="text-sm font-medium text-foreground">No financial activity yet</p>
+            <p className="max-w-xs text-xs text-muted-foreground">
+              This chart fills in as invoices are marked paid and expenses are recorded.
+            </p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="name"
@@ -112,7 +121,8 @@ export function RevenueChart({ className }: RevenueChartProps) {
               activeDot={{ r: 6, fill: "var(--teal)" }}
             />
           </LineChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        )}
       </div>
     </motion.div>
   );

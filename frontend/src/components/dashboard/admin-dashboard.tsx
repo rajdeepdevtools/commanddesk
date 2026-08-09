@@ -1,9 +1,12 @@
 "use client";
 
-import { StatsCards } from "@/components/dashboard/stats-cards";
-import { RevenueChart } from "@/components/dashboard/revenue-chart";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { StatsCards, type DashboardStats } from "@/components/dashboard/stats-cards";
+import { RevenueChart, type RevenuePoint } from "@/components/dashboard/revenue-chart";
+import { ActivityFeed, type ActivityItem } from "@/components/dashboard/activity-feed";
 import Link from "next/link";
-import { Building2, ShieldCheck } from "lucide-react";
+import { AlertCircle, Building2, ShieldCheck } from "lucide-react";
 
 const quickActionRoutes: Record<string, string> = {
   "New Project": "/projects",
@@ -14,20 +17,31 @@ const quickActionRoutes: Record<string, string> = {
   "Run Report": "/analytics",
 };
 
+interface DashboardOverview {
+  stats: DashboardStats;
+  revenueSeries: RevenuePoint[];
+  activity: ActivityItem[];
+}
+
 interface AdminDashboardProps {
   userName?: string;
   role?: string;
 }
 
 export function AdminDashboard({ userName = "Admin", role = "ORGANIZATION_OWNER" }: AdminDashboardProps) {
+  const { data, isLoading, isError, error, refetch } = useQuery<DashboardOverview>({
+    queryKey: ["dashboard-overview"],
+    queryFn: () => apiClient.get("/dashboard").then((res) => res.data),
+  });
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-midnight-navy p-6 text-white shadow-lg">
+      <div className="flex flex-col gap-2 rounded-2xl bg-midnight-navy p-6 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-teal-300">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Executive Workspace ({role.replace("_", " ")})
+            Executive Workspace ({role.replace(/_/g, " ")})
           </div>
           <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight text-white">
             Welcome back, {userName}!
@@ -37,69 +51,39 @@ export function AdminDashboard({ userName = "Admin", role = "ORGANIZATION_OWNER"
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 bg-white/5 p-3 rounded-xl border border-white/10">
-          <Building2 className="w-4 h-4 text-primary-indigo" />
-          <span>Super Admin Management Enabled</span>
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs font-semibold text-slate-300">
+          <Building2 className="h-4 w-4 text-primary-indigo" />
+          <span>{role.replace(/_/g, " ")}</span>
         </div>
       </div>
 
+      {isError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/10 p-4"
+        >
+          <span className="flex items-center gap-2 text-sm text-danger">
+            <AlertCircle className="h-4 w-4" />
+            {(error as any)?.response?.data?.error ||
+              "Dashboard data could not be loaded."}
+          </span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stats Cards */}
-      <StatsCards />
+      <StatsCards stats={data?.stats} isLoading={isLoading} />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <RevenueChart />
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-soft dark:border-gray-800 dark:bg-midnight-navy">
-          <h3 className="mb-4 font-heading text-lg font-semibold text-midnight-navy dark:text-white">
-            Company Recent Activity
-          </h3>
-          <div className="space-y-4">
-            {[
-              {
-                action: "New project created",
-                detail: "Website Redesign",
-                time: "2 min ago",
-              },
-              {
-                action: "Task completed",
-                detail: "Homepage wireframe",
-                time: "15 min ago",
-              },
-              {
-                action: "Lead added",
-                detail: "Acme Corp - ₹50,000",
-                time: "1 hour ago",
-              },
-              {
-                action: "Invoice paid",
-                detail: "INV-2026-089",
-                time: "3 hours ago",
-              },
-              {
-                action: "Meeting scheduled",
-                detail: "Sprint Planning",
-                time: "5 hours ago",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-xl border border-gray-50 bg-gray-50/50 p-3 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:bg-gray-800"
-              >
-                <div>
-                  <p className="text-sm font-medium text-midnight-navy dark:text-white">
-                    {item.action}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {item.time}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RevenueChart data={data?.revenueSeries} isLoading={isLoading} />
+        <ActivityFeed items={data?.activity} isLoading={isLoading} />
       </div>
 
       {/* Quick Actions */}
