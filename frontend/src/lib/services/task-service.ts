@@ -7,7 +7,17 @@ export class TaskService {
     return { id: "mock", content };
   }
   static async getStats(companyId: string, userId?: string) {
-    return { total: 0, completed: 0, inProgress: 0, todo: 0 };
+    const where: any = { project: { companyId } };
+    if (userId) {
+      where.assigneeId = userId;
+    }
+    const [total, completed, inProgress, todo] = await Promise.all([
+      prisma.task.count({ where }),
+      prisma.task.count({ where: { ...where, status: "COMPLETED" as any } }),
+      prisma.task.count({ where: { ...where, status: "IN_PROGRESS" as any } }),
+      prisma.task.count({ where: { ...where, status: "TODO" as any } }),
+    ]);
+    return { total, completed, inProgress, todo };
   }
 
   /**
