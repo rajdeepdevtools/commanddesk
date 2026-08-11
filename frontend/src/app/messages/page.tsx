@@ -1,39 +1,131 @@
 "use client";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus, Search, Send, Users, X } from "lucide-react";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { apiClient } from "@/lib/api-client";
 
-type Chat = { id: string; name: string; isGroup: boolean; unread: number; lastMessage: string; updatedAt: string };
-type Teammate = { id: string; firstName: string; lastName: string; avatarUrl?: string | null };
-type Message = { id: string; content: string; createdAt: string; senderId: string; sender: Teammate };
-type ChatData = { chats: Chat[]; users: Teammate[]; messages: Message[]; unreadCount: number; currentUserId: string };
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { ChatInterface } from "@/features/messages/components/chat-interface";
+import { Search, Edit, User as UserIcon, MessageSquare } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { formatDistanceToNow } from "date-fns";
 
 export default function MessagesPage() {
-  const queryClient = useQueryClient();
-  const [activeChatId, setActiveChatId] = useState("");
-  const [input, setInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [showNew, setShowNew] = useState(false);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [groupName, setGroupName] = useState("");
-  const query = useQuery<ChatData>({ queryKey: ["messages-data", activeChatId], queryFn: () => apiClient.get(`/messages${activeChatId ? `?chatId=${activeChatId}` : ""}`).then((response) => response.data), refetchInterval: 10000 });
-  const chats = query.data?.chats ?? [];
-  useEffect(() => { if (!activeChatId && chats[0]?.id) setActiveChatId(chats[0].id); }, [activeChatId, chats]);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["messages-data"] });
-  const send = useMutation({ mutationFn: () => apiClient.post("/messages", { chatId: activeChatId, content: input }), onSuccess: async () => { setInput(""); await refresh(); } });
-  const createChat = useMutation({ mutationFn: () => apiClient.post("/messages", { action: "createChat", participantIds: selectedUsers, name: groupName }), onSuccess: async (response) => { setActiveChatId(response.data.id); setSelectedUsers([]); setGroupName(""); setShowNew(false); await refresh(); } });
-  const selectChat = async (id: string) => { setActiveChatId(id); await apiClient.patch("/messages", { chatId: id }); refresh(); };
-  const filteredChats = useMemo(() => chats.filter((item) => !search.trim() || `${item.name} ${item.lastMessage}`.toLowerCase().includes(search.toLowerCase())), [chats, search]);
-  const activeChat = chats.find((item) => item.id === activeChatId);
-  function submit(event: FormEvent) { event.preventDefault(); if (input.trim() && activeChatId) send.mutate(); }
-  return <DashboardLayout><div className="flex h-[calc(100vh-6rem)] overflow-hidden rounded-2xl border bg-card shadow-sm">
-    <aside className="flex w-72 shrink-0 flex-col border-r">
-      <div className="border-b p-4"><div className="flex items-center justify-between"><span className="flex items-center gap-2 font-bold"><MessageSquare className="h-5 w-5 text-teal" /> Messages</span><button onClick={() => setShowNew(true)} className="rounded-lg bg-teal p-2 text-white" title="New conversation"><Plus className="h-4 w-4" /></button></div><div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations..." className="w-full rounded-xl border py-2 pl-9 pr-3 text-xs" /></div></div>
-      <div className="flex-1 overflow-y-auto p-2">{query.isLoading && !query.data ? <p className="p-4 text-xs text-muted-foreground">Loading conversations...</p> : filteredChats.map((chat) => <button key={chat.id} onClick={() => selectChat(chat.id)} className={`mb-1 flex w-full items-center gap-3 rounded-xl p-3 text-left ${activeChatId === chat.id ? "bg-teal text-white" : "hover:bg-muted"}`}><div className={`flex h-9 w-9 items-center justify-center rounded-full ${activeChatId === chat.id ? "bg-white/20" : "bg-teal/10 text-teal"}`}>{chat.isGroup ? <Users className="h-4 w-4" /> : chat.name.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><span className="truncate text-xs font-semibold">{chat.name}</span>{chat.unread > 0 && <span className="rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{chat.unread}</span>}</div><p className={`truncate text-[10px] ${activeChatId === chat.id ? "text-white/75" : "text-muted-foreground"}`}>{chat.lastMessage || "Start the conversation"}</p></div></button>)}{!query.isLoading && filteredChats.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">No conversations yet.</p>}</div>
-    </aside>
-    <section className="flex min-w-0 flex-1 flex-col">{activeChat ? <><header className="flex h-16 items-center border-b px-6"><h2 className="font-semibold">{activeChat.name}</h2></header><div className="flex-1 space-y-4 overflow-y-auto p-6">{(query.data?.messages ?? []).map((message) => { const mine = message.senderId === query.data?.currentUserId; return <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}><div className={`max-w-[75%] rounded-2xl px-4 py-3 ${mine ? "bg-teal text-white" : "bg-muted"}`}><div className={`mb-1 text-[10px] font-semibold ${mine ? "text-white/75" : "text-muted-foreground"}`}>{mine ? "You" : `${message.sender.firstName} ${message.sender.lastName}`} · {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div><p className="whitespace-pre-wrap text-sm">{message.content}</p></div></div>})}{!query.isLoading && !(query.data?.messages ?? []).length && <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No messages yet. Say hello!</div>}</div><form onSubmit={submit} className="border-t p-4"><div className="flex gap-2 rounded-2xl border p-2"><input value={input} onChange={(event) => setInput(event.target.value)} placeholder={`Message ${activeChat.name}...`} className="flex-1 bg-transparent px-3 text-sm outline-none" /><button disabled={!input.trim() || send.isPending} className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal text-white disabled:opacity-40"><Send className="h-4 w-4" /></button></div>{send.error && <p className="mt-2 text-xs text-red-600">{send.error.message}</p>}</form></> : <div className="flex h-full flex-col items-center justify-center text-muted-foreground"><MessageSquare className="mb-3 h-12 w-12 opacity-30" /><p>Select or create a conversation.</p></div>}</section>
-    {showNew && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><form onSubmit={(event) => { event.preventDefault(); createChat.mutate(); }} className="w-full max-w-md rounded-2xl bg-card p-5 shadow-xl"><div className="mb-4 flex justify-between"><h2 className="font-semibold">New conversation</h2><button type="button" onClick={() => setShowNew(false)}><X className="h-5 w-5" /></button></div><div className="max-h-64 space-y-2 overflow-y-auto">{(query.data?.users ?? []).map((user) => <label key={user.id} className="flex cursor-pointer items-center gap-3 rounded-xl border p-3"><input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={(event) => setSelectedUsers((current) => event.target.checked ? [...current, user.id] : current.filter((id) => id !== user.id))} /><span className="text-sm">{user.firstName} {user.lastName}</span></label>)}</div>{selectedUsers.length > 1 && <label className="mt-3 block text-sm font-medium">Group name<input required value={groupName} onChange={(event) => setGroupName(event.target.value)} className="mt-1 h-10 w-full rounded-xl border px-3" /></label>}{createChat.error && <p className="mt-2 text-xs text-red-600">{createChat.error.message}</p>}<div className="mt-4 flex justify-end"><button disabled={!selectedUsers.length || createChat.isPending} className="rounded-xl bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{createChat.isPending ? "Creating..." : "Start Conversation"}</button></div></form></div>}
-  </div></DashboardLayout>;
+  const { data: session } = useSession();
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+
+  const { data: chats = [], isLoading } = useQuery({
+    queryKey: ["chats"],
+    queryFn: () => apiClient.get("/messages").then(res => res.data),
+    refetchInterval: 5000,
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="flex h-[calc(100vh-100px)] bg-white dark:bg-[#0B1120] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+        
+        {/* Left Sidebar - Chat List */}
+        <div className="w-80 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-gray-50/50 dark:bg-midnight-navy shrink-0">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-500" />
+                Messages
+              </h2>
+              <button className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+                <Edit className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search messages..." 
+                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-indigo-500 dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-4 text-center text-sm text-gray-500">Loading chats...</div>
+            ) : chats.length === 0 ? (
+              <div className="p-8 text-center text-sm text-gray-500 flex flex-col items-center gap-2">
+                <MessageSquare className="w-8 h-8 text-gray-300 dark:text-gray-700" />
+                No messages yet. Click the edit icon to start a new conversation.
+              </div>
+            ) : (
+              <div className="flex flex-col">
+                {chats.map((chat: any) => {
+                  const otherParticipant = chat.participants.find((p: any) => p.user.id !== session?.user?.id)?.user;
+                  const chatName = chat.isGroup ? chat.name : (otherParticipant ? \`\${otherParticipant.firstName} \${otherParticipant.lastName}\` : "Unknown User");
+                  const lastMessage = chat.messages?.[0];
+
+                  return (
+                    <div 
+                      key={chat.id}
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={\`p-4 border-b border-gray-100 dark:border-gray-800/50 cursor-pointer transition-colors flex items-center gap-3
+                        \${activeChatId === chat.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}
+                      \`}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold shrink-0 overflow-hidden relative">
+                        {otherParticipant?.avatarUrl ? (
+                          <img src={otherParticipant.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          chatName.charAt(0)
+                        )}
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <h4 className={\`text-sm font-semibold truncate \${activeChatId === chat.id ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}\`}>
+                            {chatName}
+                          </h4>
+                          {lastMessage && (
+                            <span className="text-[10px] text-gray-400 shrink-0">
+                              {formatDistanceToNow(new Date(lastMessage.createdAt), { addSuffix: true }).replace('about ', '')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {lastMessage ? (
+                            <span className={lastMessage.senderId === session?.user?.id ? "text-gray-400" : "font-medium text-gray-700 dark:text-gray-300"}>
+                              {lastMessage.senderId === session?.user?.id ? 'You: ' : ''}{lastMessage.content}
+                            </span>
+                          ) : (
+                            <span className="italic text-gray-400">Start a conversation...</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Pane - Active Chat */}
+        <div className="flex-1 bg-white dark:bg-[#0f172a]">
+          {activeChatId ? (
+            <ChatInterface chatId={activeChatId} />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-50/30 dark:bg-midnight-navy">
+              <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-6">
+                <MessageSquare className="w-10 h-10 text-indigo-500" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">CommandDesk Chat</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+                Select a conversation from the sidebar or start a new one to begin messaging your team.
+              </p>
+              <button className="mt-6 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
+                New Message
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </DashboardLayout>
+  );
 }

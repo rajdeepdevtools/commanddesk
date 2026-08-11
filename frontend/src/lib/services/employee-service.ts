@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-
-export class EmployeeService {
+import { EmailService } from "../email/email-service";
+import { getWelcomeEmailTemplate } from "../email/templates";
   static async getAll(companyId: string) {
     return prisma.user.findMany({
       where: { companyId, isActive: true },
@@ -40,6 +40,11 @@ export class EmployeeService {
     authUserId?: string;
     aadhaarNumber?: string;
     aadhaarCardUrl?: string;
+    avatarUrl?: string;
+    baseSalary?: number;
+    bankAccount?: string;
+    ifscCode?: string;
+    panNumber?: string;
   }) {
     return prisma.user.create({
       data: {
@@ -48,6 +53,7 @@ export class EmployeeService {
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone,
+        avatarUrl: data.avatarUrl,
         role: data.role as any,
         companyId: data.companyId,
         departmentId: data.departmentId,
@@ -58,6 +64,10 @@ export class EmployeeService {
             designation: data.designation,
             aadhaarNumber: data.aadhaarNumber,
             aadhaarCardUrl: data.aadhaarCardUrl,
+            baseSalary: data.baseSalary,
+            bankAccount: data.bankAccount,
+            ifscCode: data.ifscCode,
+            panNumber: data.panNumber,
           },
         },
       },
@@ -82,18 +92,35 @@ export class EmployeeService {
             designation: true,
             aadhaarNumber: true,
             aadhaarCardUrl: true,
+            baseSalary: true,
+            bankAccount: true,
+            ifscCode: true,
+            panNumber: true,
           },
         },
       },
+      },
     });
+
+    // Send Welcome Email
+    if (newEmployee.email) {
+      EmailService.sendMail({
+        to: newEmployee.email,
+        subject: `Welcome to CommandDesk, ${newEmployee.firstName}! 🎉`,
+        html: getWelcomeEmailTemplate(newEmployee.firstName, newEmployee.role),
+      }).catch(console.error); // Do not block the request if email fails
+    }
+
+    return newEmployee;
   }
 
   static async update(id: string, data: any) {
-    const { designation, departmentId, departmentIds, aadhaarNumber, aadhaarCardUrl, ...userData } = data;
+    const { designation, departmentId, departmentIds, aadhaarNumber, aadhaarCardUrl, avatarUrl, baseSalary, bankAccount, ifscCode, panNumber, ...userData } = data;
     return prisma.user.update({
       where: { id },
       data: {
         ...userData,
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
         departmentId: departmentId === "" ? null : departmentId,
         ...(departmentIds !== undefined ? { departmentIds } : {}),
         employeeProfile: {
@@ -103,11 +130,19 @@ export class EmployeeService {
               designation,
               aadhaarNumber,
               aadhaarCardUrl,
+              baseSalary,
+              bankAccount,
+              ifscCode,
+              panNumber,
             },
             update: {
               ...(designation !== undefined ? { designation } : {}),
               ...(aadhaarNumber !== undefined ? { aadhaarNumber } : {}),
               ...(aadhaarCardUrl !== undefined ? { aadhaarCardUrl } : {}),
+              ...(baseSalary !== undefined ? { baseSalary } : {}),
+              ...(bankAccount !== undefined ? { bankAccount } : {}),
+              ...(ifscCode !== undefined ? { ifscCode } : {}),
+              ...(panNumber !== undefined ? { panNumber } : {}),
             },
           },
         },

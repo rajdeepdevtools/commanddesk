@@ -187,6 +187,48 @@ export class HrmsService {
   }
 
   static async getDepartmentDistribution(companyId: string) {
+  }
+
+  static async create(data: CreateHrmsInput) {
+    return prisma.document.create({
+      data: {
+        name: data.name || data.type || "HRMS Record",
+        description: data.description,
+        fileUrl: "",
+        fileType: "hrms",
+        folder: "HRMS",
+        uploaderId: data.companyId,
+      },
+    });
+  }
+
+  static async getDashboard(companyId: string) {
+    return this.getDashboardStats(companyId);
+  }
+
+  static async getDashboardStats(companyId: string) {
+    const [totalEmployees, activeEmployees, newHires, pendingLeaves, attendanceToday] = await Promise.all([
+      prisma.user.count({ where: { companyId } }),
+      prisma.user.count({ where: { companyId, isActive: true } }),
+      prisma.user.count({
+        where: {
+          companyId,
+          createdAt: { gte: new Date(new Date().setDate(new Date().getDate() - 30)) },
+        },
+      }),
+      prisma.leave.count({ where: { status: "PENDING" as any, user: { companyId } } }),
+      prisma.attendance.count({
+        where: {
+          date: new Date(new Date().setHours(0, 0, 0, 0)),
+          status: "PRESENT" as any,
+          user: { companyId },
+        },
+      }),
+    ]);
+    return { totalEmployees, activeEmployees, newHires, pendingLeaves, attendanceToday };
+  }
+
+  static async getDepartmentDistribution(companyId: string) {
     return prisma.department.findMany({
       where: { companyId },
       include: { _count: { select: { users: true } } },
@@ -208,5 +250,124 @@ export class HrmsService {
       balance[type].remaining = balance[type].total - balance[type].approved;
     }
     return balance;
+  }
+
+  static async clockIn(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existing = await prisma.attendance.findUnique({
+      where: {
+        userId_date: {
+          userId,
+          date: today,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new Error("Already clocked in for today");
+    }
+
+    return prisma.attendance.create({
+      data: {
+        userId,
+        date: today,
+        clockIn: new Date(),
+        status: "PRESENT",
+      },
+    });
+  }
+
+  static async clockOut(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await prisma.attendance.findUnique({
+      where: {
+        userId_date: {
+          userId,
+          date: today,
+        },
+      },
+    });
+
+    if (!attendance) {
+      throw new Error("Not clocked in today");
+    }
+    if (attendance.clockOut) {
+      throw new Error("Already clocked out");
+    }
+
+    const clockOut = new Date();
+    const workHours = (clockOut.getTime() - attendance.clockIn!.getTime()) / (1000 * 60 * 60);
+
+    return prisma.attendance.update({
+      where: { id: attendance.id },
+      data: {
+        clockOut,
+        workHours,
+      },
+    });
+  }
+
+  static async getAttendance(companyId: string, startDate?: string, endDate?: string) {
+    return prisma.attendance.findMany({
+      where: {
+        user: { companyId },
+        ...(startDate && endDate ? {
+          date: {
+            gte: new Date(startDate),
+            lte: new Date(endDate),
+          }
+        } : {})
+      },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, id: true, avatarUrl: true }
+        }
+      },
+      orderBy: { date: "desc" },
+    });
+  }
+
+  static async getLeaves(companyId: string, startDate?: string, endDate?: string) {
+    return prisma.leave.findMany({
+      where: {
+        user: { companyId },
+        ...(startDate && endDate ? {
+          startDate: { gte: new Date(startDate) },
+        } : {})
+      },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, id: true, avatarUrl: true }
+        }
+      },
+      orderBy: { startDate: "desc" },
+    });
+  }
+
+  static async createLeaveRequest(userId: string, data: { startDate: string; endDate: string; type: string; reason?: string }) {
+    return prisma.leave.create({
+      data: {
+        userId,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        type: data.type,
+        reason: data.reason,
+        status: "PENDING",
+      },
+    });
+  }
+
+  static async updateLeaveStatus(leaveId: string, status: "APPROVED" | "REJECTED" | "CANCELLED", approvedBy?: string) {
+    return prisma.leave.update({
+      where: { id: leaveId },
+      data: {
+        status,
+        ...(status === "APPROVED" ? { approvedBy, approvedAt: new Date() } : {}),
+      },
+    });
   }
 }

@@ -35,6 +35,10 @@ interface EmployeeUser {
     workMode?: string | null;
     aadhaarNumber?: string | null;
     aadhaarCardUrl?: string | null;
+    baseSalary?: number | null;
+    bankAccount?: string | null;
+    ifscCode?: string | null;
+    panNumber?: string | null;
   } | null;
 }
 
@@ -58,6 +62,11 @@ export function EmployeeDashboard({ user }: EmployeeDashboardProps) {
     queryFn: () => apiClient.get("/leaves").then((res) => res.data).catch(() => []),
   });
 
+  const { data: payrollData } = useQuery<any>({
+    queryKey: ["employee-my-payroll"],
+    queryFn: () => apiClient.get("/payroll").then((res) => res.data).catch(() => null),
+  });
+
   const fullName = `${user.firstName || "Employee"} ${user.lastName || ""}`.trim();
   const designation = user.employeeProfile?.designation || "Team Member";
   const workMode = user.employeeProfile?.workMode || "OFFICE";
@@ -71,6 +80,11 @@ export function EmployeeDashboard({ user }: EmployeeDashboardProps) {
   const pendingLeaves = Array.isArray(leavesData)
     ? leavesData.filter((l) => l.status === "PENDING" || l.status === "APPROVED")
     : [];
+
+  const myPayslips = Array.isArray(payrollData?.payslips)
+    ? payrollData.payslips.filter((p: any) => p.userId === user.id)
+    : [];
+  const latestPayslip = myPayslips.length > 0 ? myPayslips[0] : null;
 
   return (
     <div className="space-y-8">
@@ -223,15 +237,15 @@ export function EmployeeDashboard({ user }: EmployeeDashboardProps) {
             </div>
           </div>
           <div className="mt-3">
-            <span className="inline-block text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-              Latest Payslip Ready
+            <span className={`inline-block text-sm font-semibold ${latestPayslip?.status === "PAID" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+              {latestPayslip ? (latestPayslip.status === "PAID" ? "Salary Credited" : "Processing...") : "No active payroll"}
             </span>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Monthly salary statement available
+              {latestPayslip ? `For ${latestPayslip.paymentDate ? new Date(latestPayslip.paymentDate).toLocaleDateString() : 'recent month'}` : "Check back later"}
             </p>
           </div>
           <Link href="/payroll" className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline">
-            Download payslip <ArrowUpRight className="w-3.5 h-3.5" />
+            View all payslips <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>
@@ -344,6 +358,80 @@ export function EmployeeDashboard({ user }: EmployeeDashboardProps) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Bank Details & Recent Payroll */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-soft dark:border-gray-800 dark:bg-midnight-navy">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-heading text-lg font-semibold text-midnight-navy dark:text-white flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-emerald-500" /> Bank & Salary Details
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Base Salary (Annual)</p>
+                <p className="font-mono text-lg font-bold text-midnight-navy dark:text-white mt-1">
+                  ₹{(user.employeeProfile?.baseSalary || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                <p className="text-xs text-slate-500 dark:text-slate-400">PAN Number</p>
+                <p className="font-mono text-sm font-bold text-midnight-navy dark:text-white mt-1">
+                  {user.employeeProfile?.panNumber || "NOT ADDED"}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Account Number</p>
+              <p className="font-mono text-sm font-bold text-midnight-navy dark:text-white mt-1 mb-3">
+                {user.employeeProfile?.bankAccount ? user.employeeProfile.bankAccount.replace(/.(?=.{4})/g, '*') : "NOT ADDED"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">IFSC Code</p>
+              <p className="font-mono text-sm font-bold text-midnight-navy dark:text-white mt-1">
+                {user.employeeProfile?.ifscCode || "NOT ADDED"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-soft dark:border-gray-800 dark:bg-midnight-navy">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-heading text-lg font-semibold text-midnight-navy dark:text-white flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-sky-500" /> Recent Payslips
+            </h3>
+            <Link href="/payroll" className="text-xs font-semibold text-primary-indigo hover:underline flex items-center gap-1">
+              View All <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {myPayslips.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center dark:border-gray-700">
+              <Receipt className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" />
+              <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-200">No payslips yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {myPayslips.slice(0, 3).map((ps: any) => (
+                <div key={ps.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-slate-50/50 p-4 transition-all hover:bg-gray-100 dark:border-gray-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80">
+                  <div>
+                    <p className="font-semibold text-sm text-midnight-navy dark:text-white font-mono">
+                      ₹{ps.netPay.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Net Pay
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${ps.status === 'PAID' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'}`}>
+                      {ps.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

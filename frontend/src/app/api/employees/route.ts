@@ -34,6 +34,7 @@ export async function GET() {
       email: true,
       phone: true,
       role: true,
+      avatarUrl: true,
       isActive: true,
       departmentId: true,
       departmentIds: true,
@@ -48,6 +49,10 @@ export async function GET() {
           designation: true,
           aadhaarNumber: true,
           aadhaarCardUrl: true,
+          baseSalary: true,
+          bankAccount: true,
+          ifscCode: true,
+          panNumber: true,
         },
       },
     };
@@ -84,11 +89,12 @@ export async function GET() {
         email: true,
         phone: true,
         role: true,
+        avatarUrl: true,
         isActive: true,
         departmentId: true,
         departmentIds: true,
         department: { select: { id: true, name: true } },
-        employeeProfile: { select: { designation: true, aadhaarNumber: true, aadhaarCardUrl: true } },
+        employeeProfile: { select: { designation: true, aadhaarNumber: true, aadhaarCardUrl: true, baseSalary: true, bankAccount: true, ifscCode: true, panNumber: true } },
       },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     }).catch(() => []);
@@ -127,6 +133,11 @@ export async function POST(request: Request) {
       password?: string;
       aadhaarNumber?: string;
       aadhaarCardUrl?: string;
+      avatarUrl?: string;
+      baseSalary?: number;
+      bankAccount?: string;
+      ifscCode?: string;
+      panNumber?: string;
     };
 
     if (
@@ -177,6 +188,7 @@ export async function POST(request: Request) {
           firstName: body.firstName.trim(),
           lastName: body.lastName.trim(),
           phone: body.phone?.trim() || existingUser.phone,
+          avatarUrl: body.avatarUrl || existingUser.avatarUrl,
           role: role as any,
           isActive: true,
           companyId: companyId,
@@ -189,11 +201,19 @@ export async function POST(request: Request) {
                 designation: designation,
                 aadhaarNumber: body.aadhaarNumber?.trim() || undefined,
                 aadhaarCardUrl: body.aadhaarCardUrl || undefined,
+                baseSalary: body.baseSalary,
+                bankAccount: body.bankAccount?.trim() || undefined,
+                ifscCode: body.ifscCode?.trim() || undefined,
+                panNumber: body.panNumber?.trim() || undefined,
               },
               update: {
                 designation: designation,
                 ...(body.aadhaarNumber !== undefined ? { aadhaarNumber: body.aadhaarNumber.trim() } : {}),
                 ...(body.aadhaarCardUrl !== undefined ? { aadhaarCardUrl: body.aadhaarCardUrl } : {}),
+                ...(body.baseSalary !== undefined ? { baseSalary: body.baseSalary } : {}),
+                ...(body.bankAccount !== undefined ? { bankAccount: body.bankAccount.trim() } : {}),
+                ...(body.ifscCode !== undefined ? { ifscCode: body.ifscCode.trim() } : {}),
+                ...(body.panNumber !== undefined ? { panNumber: body.panNumber.trim() } : {}),
               },
             },
           },
@@ -205,11 +225,12 @@ export async function POST(request: Request) {
           email: true,
           phone: true,
           role: true,
+          avatarUrl: true,
           isActive: true,
           departmentId: true,
           departmentIds: true,
           department: { select: { id: true, name: true } },
-          employeeProfile: { select: { designation: true, aadhaarNumber: true, aadhaarCardUrl: true } },
+          employeeProfile: { select: { designation: true, aadhaarNumber: true, aadhaarCardUrl: true, baseSalary: true, bankAccount: true, ifscCode: true, panNumber: true } },
         },
       });
       return NextResponse.json(updatedUser, { status: 200 });
@@ -228,6 +249,11 @@ export async function POST(request: Request) {
       phone: body.phone?.trim(),
       aadhaarNumber: body.aadhaarNumber?.trim() || undefined,
       aadhaarCardUrl: body.aadhaarCardUrl || undefined,
+      avatarUrl: body.avatarUrl || undefined,
+      baseSalary: body.baseSalary,
+      bankAccount: body.bankAccount?.trim() || undefined,
+      ifscCode: body.ifscCode?.trim() || undefined,
+      panNumber: body.panNumber?.trim() || undefined,
     });
 
     return NextResponse.json(employee, { status: 201 });

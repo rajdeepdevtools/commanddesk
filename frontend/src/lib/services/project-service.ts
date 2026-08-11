@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-
-export class ProjectService {
+import { EmailService } from "../email/email-service";
+import { getNewProjectTemplate } from "../email/templates";
   static async getAll(companyId: string) {
     return prisma.project.findMany({
       where: { companyId },
@@ -44,8 +44,18 @@ export class ProjectService {
         color: data.color,
         isBillable: data.isBillable ?? true,
       },
-      include: { lead: { select: { id: true, firstName: true, lastName: true } } },
+      include: { lead: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
+
+    if (newProject.lead?.email) {
+      EmailService.sendMail({
+        to: newProject.lead.email,
+        subject: `New Project Assigned: ${newProject.name} 🚀`,
+        html: getNewProjectTemplate(newProject.name, newProject.lead.firstName, newProject.startDate?.toISOString()),
+      }).catch(console.error);
+    }
+
+    return newProject;
   }
 
   static async update(id: string, data: any) {

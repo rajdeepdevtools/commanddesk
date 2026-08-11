@@ -2,38 +2,10 @@
 
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="glass rounded-xl p-3 shadow-lg border border-border">
-        <p className="text-sm font-medium text-foreground mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-2 text-sm">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-muted-foreground">{entry.name}:</span>
-            <span className="font-medium text-foreground">
-              ₹{(entry.value / 100000).toFixed(1)}L
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export interface RevenuePoint {
   name: string;
@@ -48,7 +20,67 @@ interface RevenueChartProps {
 }
 
 export function RevenueChart({ className, data = [], isLoading }: RevenueChartProps) {
+  const { theme } = useTheme();
   const hasData = data.some((point) => point.revenue > 0 || point.expenses > 0);
+
+  const chartOptions: any = {
+    chart: {
+      type: "area",
+      toolbar: { show: false },
+      background: "transparent",
+      fontFamily: "var(--font-body)",
+    },
+    theme: {
+      mode: theme === "dark" ? "dark" : "light",
+    },
+    colors: ["#6366f1", "#14b8a6"], // Indigo for revenue, Teal for expenses
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth", width: 2 },
+    fill: {
+      type: "gradient",
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.4,
+        opacityTo: 0.05,
+      },
+    },
+    xaxis: {
+      categories: data.map((d) => d.name),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { style: { colors: "var(--muted-foreground)" } },
+    },
+    yaxis: {
+      labels: {
+        style: { colors: "var(--muted-foreground)" },
+        formatter: (value: number) => `₹${(value / 100000).toFixed(0)}L`,
+      },
+    },
+    grid: {
+      borderColor: "var(--border)",
+      strokeDashArray: 3,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+    },
+    legend: { show: false },
+    tooltip: {
+      theme: theme === "dark" ? "dark" : "light",
+      y: {
+        formatter: (value: number) => `₹${(value / 100000).toFixed(1)}L`,
+      },
+    },
+  };
+
+  const chartSeries = [
+    {
+      name: "Revenue",
+      data: data.map((d) => d.revenue),
+    },
+    {
+      name: "Expenses",
+      data: data.map((d) => d.expenses),
+    },
+  ];
 
   return (
     <motion.div
@@ -88,40 +120,7 @@ export function RevenueChart({ className, data = [], isLoading }: RevenueChartPr
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis
-              dataKey="name"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-              tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Line
-              type="monotone"
-              dataKey="revenue"
-              stroke="var(--primary)"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 6, fill: "var(--primary)" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="expenses"
-              stroke="var(--teal)"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 6, fill: "var(--teal)" }}
-            />
-          </LineChart>
-          </ResponsiveContainer>
+          <Chart options={chartOptions} series={chartSeries} type="area" height="100%" />
         )}
       </div>
     </motion.div>

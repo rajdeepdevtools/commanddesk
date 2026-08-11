@@ -151,6 +151,10 @@ model User {
   memberships      CompanyMembership[]
   auditEvents      AuditLog[]          @relation("AuditActor")
   apiKeysCreated   ApiKey[]            @relation("ApiKeyCreator")
+
+  interviews       Interview[]
+  managedWarehouses Warehouse[]
+  stockMovements   StockMovement[]
 }
 
 model Company {
@@ -190,6 +194,9 @@ model Company {
   customDomains CustomDomain[]
   branding      BrandingSettings?
   auditLogs     AuditLog[]
+
+  jobPostings   JobPosting[]
+  warehouses    Warehouse[]
 }
 
 model Department {
@@ -206,6 +213,8 @@ model Department {
   users     User[]
   head      User?   @relation("DepartmentHead", fields: [headId], references: [id])
   headId    String?
+
+  jobPostings JobPosting[]
 }
 
 // ========== AUTH MODELS ==========
@@ -855,4 +864,104 @@ model AuditLog {
 
   @@index([companyId, createdAt])
   @@index([resource, resourceId])
+}
+
+// ========== RECRUITMENT MODELS ==========
+
+model JobPosting {
+  id           String   @id @default(cuid())
+  title        String
+  departmentId String?
+  location     String?
+  type         String   @default("FULL_TIME") // FULL_TIME, PART_TIME, CONTRACT
+  status       String   @default("OPEN") // OPEN, CLOSED, DRAFT
+  description  String
+  requirements String?
+  salaryRange  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id])
+  companyId String
+  department Department? @relation(fields: [departmentId], references: [id])
+  applicants Applicant[]
+}
+
+model Applicant {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  resumeUrl   String?
+  status      String   @default("NEW") // NEW, SCREENING, INTERVIEW, OFFERED, REJECTED
+  notes       String?
+  appliedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  jobPostingId String
+  interviews   Interview[]
+}
+
+model Interview {
+  id           String   @id @default(cuid())
+  scheduledAt  DateTime
+  durationMins Int      @default(60)
+  type         String   @default("VIDEO") // VIDEO, PHONE, IN_PERSON
+  meetingLink  String?
+  status       String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  feedback     String?
+  createdAt    DateTime @default(now())
+
+  applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  applicantId String
+  interviewer User      @relation(fields: [interviewerId], references: [id])
+  interviewerId String
+}
+
+// ========== INVENTORY MODELS ==========
+
+model Warehouse {
+  id          String   @id @default(cuid())
+  name        String
+  location    String?
+  managerId   String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id])
+  companyId String
+  manager   User?   @relation(fields: [managerId], references: [id])
+  items     InventoryItem[]
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String   @unique
+  category    String?
+  quantity    Int      @default(0)
+  unitPrice   Float?
+  status      String   @default("IN_STOCK") // IN_STOCK, LOW_STOCK, OUT_OF_STOCK
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId String
+  movements   StockMovement[]
+}
+
+model StockMovement {
+  id          String   @id @default(cuid())
+  type        String   // IN, OUT, TRANSFER
+  quantity    Int
+  reference   String?  // e.g. PO number or order ID
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  item   InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String
+  actor  User          @relation(fields: [actorId], references: [id])
+  actorId String
 }

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export class CrmService {
-  // ---- LEADS ----
+  // ================= LEADS ================= //
 
   static async getLeads(companyId: string) {
     return prisma.lead.findMany({
@@ -10,79 +10,107 @@ export class CrmService {
     });
   }
 
-  static async getLeadById(id: string, companyId: string) {
-    return prisma.lead.findUnique({
-      where: { id, companyId },
-    });
-  }
-
-  static async createLead(companyId: string, data: { name: string; email?: string; phone?: string; source?: string; budget?: number; notes?: string }) {
+  static async createLead(companyId: string, data: any) {
     return prisma.lead.create({
       data: {
-        ...data,
         companyId,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        source: data.source,
+        budget: data.budget ? parseFloat(data.budget.toString()) : null,
+        notes: data.notes,
+        score: data.score ? parseInt(data.score.toString()) : 0,
+        status: data.status || "NEW",
       },
     });
   }
 
-  static async updateLead(id: string, companyId: string, data: any) {
+  static async updateLeadStatus(companyId: string, leadId: string, status: any) {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+    });
+
+    if (!lead || lead.companyId !== companyId) {
+      throw new Error("Lead not found");
+    }
+
+    const data: any = { status };
+    if (status === "WON" && lead.status !== "WON") {
+      data.convertedAt = new Date();
+    }
+
     return prisma.lead.update({
-      where: { id, companyId },
+      where: { id: leadId },
       data,
     });
   }
 
-  static async updateLeadStatus(id: string, companyId: string, status: any) {
-    return prisma.lead.update({
-      where: { id, companyId },
-      data: { status },
+  static async convertLeadToClient(companyId: string, leadId: string) {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+    });
+
+    if (!lead || lead.companyId !== companyId) {
+      throw new Error("Lead not found");
+    }
+
+    if (lead.clientId) {
+      return prisma.client.findUnique({ where: { id: lead.clientId } });
+    }
+
+    // Wrap in transaction
+    return prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({
+        data: {
+          companyId,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          companyName: lead.name, // Fallback
+          notes: lead.notes,
+        },
+      });
+
+      await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          status: "WON",
+          convertedAt: new Date(),
+          clientId: client.id,
+        },
+      });
+
+      return client;
     });
   }
 
-  static async deleteLead(id: string, companyId: string) {
-    return prisma.lead.delete({
-      where: { id, companyId },
-    });
-  }
-
-  // ---- CLIENTS ----
+  // ================= CLIENTS ================= //
 
   static async getClients(companyId: string) {
     return prisma.client.findMany({
       where: { companyId },
-      orderBy: { name: "asc" },
-    });
-  }
-
-  static async getClientById(id: string, companyId: string) {
-    return prisma.client.findUnique({
-      where: { id, companyId },
+      orderBy: { createdAt: "desc" },
       include: {
-        leads: true,
-        invoices: true,
-      }
-    });
-  }
-
-  static async createClient(companyId: string, data: { name: string; email?: string; phone?: string; companyName?: string; website?: string }) {
-    return prisma.client.create({
-      data: {
-        ...data,
-        companyId,
+        _count: {
+          select: { invoices: true, leads: true },
+        },
       },
     });
   }
 
-  static async updateClient(id: string, companyId: string, data: any) {
-    return prisma.client.update({
-      where: { id, companyId },
-      data,
-    });
-  }
-
-  static async deleteClient(id: string, companyId: string) {
-    return prisma.client.delete({
-      where: { id, companyId },
+  static async createClient(companyId: string, data: any) {
+    return prisma.client.create({
+      data: {
+        companyId,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        companyName: data.companyName,
+        website: data.website,
+        address: data.address,
+        gst: data.gst,
+      },
     });
   }
 }

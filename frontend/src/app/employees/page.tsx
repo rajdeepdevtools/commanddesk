@@ -32,12 +32,16 @@ type Employee = {
   role: string;
   isActive?: boolean;
   departmentId?: string | null;
-  departmentIds?: string[];
   department?: { id: string; name: string } | null;
+  avatarUrl?: string | null;
   employeeProfile?: {
     designation?: string | null;
     aadhaarNumber?: string | null;
     aadhaarCardUrl?: string | null;
+    baseSalary?: number | null;
+    bankAccount?: string | null;
+    ifscCode?: string | null;
+    panNumber?: string | null;
   } | null;
 };
 
@@ -56,6 +60,9 @@ export default function EmployeesPage() {
   const [aadhaarUploadError, setAadhaarUploadError] = useState("");
   const [isUploadingAadhaar, setIsUploadingAadhaar] = useState(false);
 
+  const [avatarUploadError, setAvatarUploadError] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   const initialFormState = {
     firstName: "",
     lastName: "",
@@ -68,6 +75,11 @@ export default function EmployeesPage() {
     designation: "",
     aadhaarNumber: "",
     aadhaarCardUrl: "",
+    avatarUrl: "",
+    baseSalary: "",
+    bankAccount: "",
+    ifscCode: "",
+    panNumber: "",
   };
   const [form, setForm] = useState(initialFormState);
 
@@ -151,8 +163,14 @@ export default function EmployeesPage() {
       designation: emp.employeeProfile?.designation || "",
       aadhaarNumber: emp.employeeProfile?.aadhaarNumber || "",
       aadhaarCardUrl: emp.employeeProfile?.aadhaarCardUrl || "",
+      avatarUrl: emp.avatarUrl || "",
+      baseSalary: emp.employeeProfile?.baseSalary?.toString() || "",
+      bankAccount: emp.employeeProfile?.bankAccount || "",
+      ifscCode: emp.employeeProfile?.ifscCode || "",
+      panNumber: emp.employeeProfile?.panNumber || "",
     });
     setAadhaarUploadError("");
+    setAvatarUploadError("");
     setIsFormOpen(true);
   };
 
@@ -160,7 +178,45 @@ export default function EmployeesPage() {
     setIsFormOpen(false);
     setEditingEmployee(null);
     setAadhaarUploadError("");
+    setAvatarUploadError("");
     setForm(initialFormState);
+  };
+
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+    const fileName = file.name.toLowerCase();
+    const isAllowedExt = /\.(jpe?g|png|webp)$/i.test(fileName);
+    if (!allowedTypes.has(file.type) && !isAllowedExt) {
+      setAvatarUploadError("Invalid file type. Only JPG, PNG, or WEBP images are allowed.");
+      e.target.value = "";
+      return;
+    }
+
+    const maxMb = 2;
+    const actualMb = file.size / (1024 * 1024);
+    if (actualMb > maxMb) {
+      setAvatarUploadError(`File size (${actualMb.toFixed(1)} MB) exceeds the max 2 MB limit.`);
+      e.target.value = "";
+      return;
+    }
+
+    setAvatarUploadError("");
+    setIsUploadingAvatar(true);
+
+    try {
+      const payload = new FormData();
+      payload.append("avatar", file);
+      const response = await apiClient.post("/employees/upload-avatar", payload);
+      setForm((prev) => ({ ...prev, avatarUrl: response.data.url }));
+    } catch (err: any) {
+      setAvatarUploadError(err?.response?.data?.error || err?.message || "Failed to upload profile picture.");
+    } finally {
+      setIsUploadingAvatar(false);
+      e.target.value = "";
+    }
   };
 
   const handleAadhaarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,6 +274,11 @@ export default function EmployeesPage() {
         phone: form.phone || undefined,
         aadhaarNumber: form.aadhaarNumber || undefined,
         aadhaarCardUrl: form.aadhaarCardUrl || undefined,
+        avatarUrl: form.avatarUrl || undefined,
+        baseSalary: form.baseSalary ? parseFloat(form.baseSalary) : undefined,
+        bankAccount: form.bankAccount || undefined,
+        ifscCode: form.ifscCode || undefined,
+        panNumber: form.panNumber || undefined,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -238,6 +299,11 @@ export default function EmployeesPage() {
         phone: form.phone || undefined,
         aadhaarNumber: form.aadhaarNumber || undefined,
         aadhaarCardUrl: form.aadhaarCardUrl || undefined,
+        avatarUrl: form.avatarUrl || undefined,
+        baseSalary: form.baseSalary ? parseFloat(form.baseSalary) : undefined,
+        bankAccount: form.bankAccount || undefined,
+        ifscCode: form.ifscCode || undefined,
+        panNumber: form.panNumber || undefined,
         ...(form.password ? { password: form.password } : {}),
       }),
     onSuccess: async () => {
@@ -469,6 +535,60 @@ export default function EmployeesPage() {
                   placeholder="Senior Software Engineer"
                 />
               </label>
+
+              {/* Profile Picture Section */}
+              <div className="md:col-span-2 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40 space-y-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                  <UserPlus className="w-4 h-4 text-primary-indigo" />
+                  <span>Profile Picture</span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    Profile Picture URL
+                    <input
+                      type="url"
+                      value={form.avatarUrl}
+                      onChange={(event) => setForm({ ...form, avatarUrl: event.target.value })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950"
+                      placeholder="https://example.com/photo.jpg"
+                    />
+                  </label>
+                  <div className="space-y-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <span>Or Upload Image (JPG, PNG, WEBP - Max 2 MB)</span>
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 h-11 px-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900 flex items-center justify-between cursor-pointer transition">
+                        <span className="text-xs text-slate-500 truncate">
+                          {isUploadingAvatar
+                            ? "Uploading..."
+                            : form.avatarUrl
+                            ? "Change File"
+                            : "Choose Image (<= 2 MB)"}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                          onChange={handleAvatarFileUpload}
+                          className="hidden"
+                          disabled={isUploadingAvatar}
+                        />
+                        {isUploadingAvatar && <Loader2 className="w-4 h-4 animate-spin text-primary-indigo" />}
+                      </label>
+                      {form.avatarUrl && (
+                        <div className="h-11 w-11 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden dark:bg-slate-800 dark:border-slate-700 shrink-0">
+                          <img src={form.avatarUrl} alt="Avatar Preview" className="h-full w-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {avatarUploadError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{avatarUploadError}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Multi-Department Selection */}
               {departments.length > 0 && (
                 <div className="space-y-1.5 text-sm font-medium text-slate-700 md:col-span-2 dark:text-slate-200">
@@ -581,6 +701,56 @@ export default function EmployeesPage() {
                   </div>
                 )}
               </div>
+
+              {/* Bank Details & Salary Section */}
+              <div className="md:col-span-2 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40 space-y-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                  <Building2 className="w-4 h-4 text-emerald-500" />
+                  <span>Bank & Financial Details</span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Base Salary (Annual)
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.baseSalary}
+                      onChange={(event) => setForm({ ...form, baseSalary: event.target.value })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950 font-mono"
+                      placeholder="600000"
+                    />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    PAN Number
+                    <input
+                      value={form.panNumber}
+                      onChange={(event) => setForm({ ...form, panNumber: event.target.value.toUpperCase() })}
+                      maxLength={10}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950 font-mono uppercase"
+                      placeholder="ABCDE1234F"
+                    />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Bank Account Number
+                    <input
+                      value={form.bankAccount}
+                      onChange={(event) => setForm({ ...form, bankAccount: event.target.value })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950 font-mono"
+                      placeholder="1234567890"
+                    />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    IFSC Code
+                    <input
+                      value={form.ifscCode}
+                      onChange={(event) => setForm({ ...form, ifscCode: event.target.value.toUpperCase() })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950 font-mono uppercase"
+                      placeholder="HDFC0001234"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
 
             {(createEmployee.error || updateEmployee.error) && (
@@ -692,9 +862,15 @@ export default function EmployeesPage() {
                   <article key={employee.id} className="group rounded-2xl border border-slate-200/80 bg-white p-5 transition duration-300 hover:-translate-y-1 hover:border-primary-indigo/25 hover:shadow-[0_18px_40px_rgba(67,56,202,0.10)] dark:border-slate-800 dark:bg-slate-950/60">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-indigo to-premium-teal text-sm font-bold text-white shadow-md shadow-indigo-500/20" style={{ width: '52px', height: '52px' }}>
-                          {initials}
-                        </div>
+                        {employee.avatarUrl ? (
+                          <div className="h-13 w-13 rounded-2xl overflow-hidden shadow-md shadow-indigo-500/20" style={{ width: '52px', height: '52px', flexShrink: 0 }}>
+                            <img src={employee.avatarUrl} alt={employee.firstName} className="h-full w-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-indigo to-premium-teal text-sm font-bold text-white shadow-md shadow-indigo-500/20" style={{ width: '52px', height: '52px', flexShrink: 0 }}>
+                            {initials}
+                          </div>
+                        )}
                         <div>
                           <Link href={`/employees/${employee.id}`} className="font-heading text-base font-semibold text-midnight-navy transition hover:text-primary-indigo dark:text-white">
                             {employee.firstName} {employee.lastName}

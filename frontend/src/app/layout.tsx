@@ -3,6 +3,8 @@ import { Sora, Inter, IBM_Plex_Sans } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { SessionProvider } from "@/providers/session-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { AbilityProvider } from "@/providers/ability-provider";
+import { auth } from "@/lib/auth";
 import "./globals.css";
 
 const sora = Sora({
@@ -38,11 +40,13 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  const role = session?.user?.role || "GUEST";
   return (
     <html
       lang="en"
@@ -50,18 +54,20 @@ export default function RootLayout({
       className={`${sora.variable} ${inter.variable} ${ibmPlexSans.variable}`}
     >
       <body className="min-h-screen bg-background font-body text-foreground antialiased">
-        <SessionProvider>
-          <QueryProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="light"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-            </ThemeProvider>
-          </QueryProvider>
-        </SessionProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SessionProvider>
+            <AbilityProvider role={role}>
+              <QueryProvider>
+                {children}
+              </QueryProvider>
+            </AbilityProvider>
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

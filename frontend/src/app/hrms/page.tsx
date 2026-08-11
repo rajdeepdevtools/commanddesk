@@ -1,53 +1,117 @@
 "use client";
-import { FormEvent, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Award, BookOpen, ExternalLink, FileText, Laptop, Pencil, Plus, Search, Trash2, UserCircle, X } from "lucide-react";
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { apiClient } from "@/lib/api-client";
+import { ClockInWidget } from "@/features/hrms/components/clock-in-widget";
+import { LeaveRequestModal } from "@/features/hrms/components/leave-request-modal";
+import { HrmsCalendar } from "@/features/hrms/components/hrms-calendar";
+import { Users, Calendar as CalendarIcon, Briefcase, Plus } from "lucide-react";
 
-type Tab = "policies" | "assets" | "trainings" | "documents";
-type Doc = { id: string; name: string; description?: string | null; fileUrl?: string | null; fileType?: string | null };
-type Asset = { id: string; name: string; type: string; serialNumber?: string | null; model?: string | null; brand?: string | null; value?: number | null; status: string; userId: string; user?: { id: string; firstName: string; lastName: string } };
-type Employee = { id: string; firstName: string; lastName: string };
-const empty = { name: "", description: "", fileUrl: "", fileType: "", type: "", serialNumber: "", model: "", brand: "", value: "", status: "ASSIGNED", userId: "" };
-const singular: Record<Tab, string> = { policies: "policy", assets: "asset", trainings: "training", documents: "document" };
 export default function HrmsPage() {
-  const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("policies");
-  const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState("");
-  const [form, setForm] = useState(empty);
-  const query = useQuery<{ policies: Doc[]; assets: Asset[]; trainings: Doc[]; documents: Doc[] }>({ queryKey: ["hrms-all"], queryFn: () => apiClient.get("/hrms").then((response) => response.data) });
-  const employeesQuery = useQuery<Employee[]>({ queryKey: ["employees", "hrms-assets"], queryFn: () => apiClient.get("/employees").then((response) => response.data) });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["hrms-all"] });
-  const save = useMutation({
-    mutationFn: () => {
-      const type = singular[tab];
-      const data = type === "asset" ? { name: form.name, type: form.type, serialNumber: form.serialNumber, model: form.model, brand: form.brand, value: form.value ? Number(form.value) : undefined, status: form.status, userId: form.userId } : type === "training" ? { name: form.name, title: form.name, description: form.description } : { name: form.name, description: form.description, fileUrl: form.fileUrl, fileType: form.fileType };
-      return editingId ? apiClient.patch("/hrms", { id: editingId, type, data }) : apiClient.post("/hrms", { type, data });
-    },
-    onSuccess: async () => { await refresh(); close(); },
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+  // Fetch Attendance
+  const { data: attendance = [], isLoading: isLoadingAttendance } = useQuery({
+    queryKey: ["attendance"],
+    queryFn: () => apiClient.get("/hrms/attendance").then((res) => res.data),
   });
-  const remove = useMutation({ mutationFn: ({ id, type }: { id: string; type: string }) => apiClient.delete(`/hrms?id=${id}&type=${type}`), onSuccess: refresh });
-  const data = query.data ?? { policies: [], assets: [], trainings: [], documents: [] };
-  const records = useMemo(() => (data[tab] ?? []).filter((item) => !search.trim() || `${item.name} ${"description" in item ? item.description ?? "" : ""} ${"type" in item ? item.type : ""}`.toLowerCase().includes(search.toLowerCase())), [data, search, tab]);
-  function close() { setShowForm(false); setEditingId(""); setForm(empty); }
-  function add() { close(); setForm({ ...empty, userId: employeesQuery.data?.[0]?.id ?? "" }); setShowForm(true); }
-  function edit(record: Doc | Asset) {
-    setEditingId(record.id);
-    if ("type" in record) setForm({ ...empty, name: record.name, type: record.type, serialNumber: record.serialNumber ?? "", model: record.model ?? "", brand: record.brand ?? "", value: record.value == null ? "" : String(record.value), status: record.status, userId: record.userId });
-    else setForm({ ...empty, name: record.name, description: record.description ?? "", fileUrl: record.fileUrl ?? "", fileType: record.fileType ?? "" });
-    setShowForm(true);
-  }
-  function submit(event: FormEvent) { event.preventDefault(); save.mutate(); }
-  const stats = [{ label: "Company Policies", value: data.policies.length, icon: BookOpen }, { label: "Assigned Assets", value: data.assets.length, icon: Laptop }, { label: "Active Trainings", value: data.trainings.length, icon: Award }, { label: "HR Documents", value: data.documents.length, icon: FileText }];
-  return <DashboardLayout><div className="space-y-7">
-    <section className="rounded-[28px] bg-midnight-navy px-6 py-7 text-white"><div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs"><UserCircle className="h-3.5 w-3.5 text-teal-300" />Human Resource Management</div><h1 className="text-3xl font-bold">HRMS Portal</h1><p className="mt-2 max-w-2xl text-sm text-slate-300">Manage policies, training programs, assigned assets and HR documents.</p></div><button onClick={add} className="flex items-center gap-2 rounded-xl bg-teal px-5 py-3 font-semibold"><Plus className="h-4 w-4" /> Add {singular[tab]}</button></div></section>
-    {showForm && <form onSubmit={submit} className="rounded-2xl border bg-card p-5 shadow-sm"><div className="mb-4 flex justify-between"><h2 className="font-semibold">{editingId ? "Edit" : "Add"} {singular[tab]}</h2><button type="button" onClick={close}><X className="h-5 w-5" /></button></div><div className="grid gap-4 md:grid-cols-2"><label className="text-sm font-medium">Name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>{tab === "assets" ? <><label className="text-sm font-medium">Category<input required value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} placeholder="Laptop, phone, display..." className="mt-1 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">Assigned employee<select required value={form.userId} onChange={(event) => setForm({ ...form, userId: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3"><option value="">Select employee</option>{(employeesQuery.data ?? []).map((employee) => <option key={employee.id} value={employee.id}>{employee.firstName} {employee.lastName}</option>)}</select></label><label className="text-sm font-medium">Serial number<input value={form.serialNumber} onChange={(event) => setForm({ ...form, serialNumber: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">Brand<input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">Model<input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">Value<input type="number" min="0" step="0.01" value={form.value} onChange={(event) => setForm({ ...form, value: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">Status<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3"><option>ASSIGNED</option><option>IN_REPAIR</option><option>RETURNED</option><option>LOST</option></select></label></> : <><label className="text-sm font-medium md:col-span-2">Description<textarea rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-1 w-full rounded-xl border px-3 py-2" /></label>{tab === "documents" && <><label className="text-sm font-medium">Document URL<input required type="url" value={form.fileUrl} onChange={(event) => setForm({ ...form, fileUrl: event.target.value })} className="mt-1 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">File type<input value={form.fileType} onChange={(event) => setForm({ ...form, fileType: event.target.value })} placeholder="pdf, docx..." className="mt-1 h-11 w-full rounded-xl border px-3" /></label></>}</>}</div>{save.error && <p className="mt-3 text-sm text-red-600">{save.error.message}</p>}<div className="mt-4 flex justify-end gap-3"><button type="button" onClick={close} className="rounded-xl border px-4 py-2">Cancel</button><button disabled={save.isPending || (tab === "assets" && !form.userId)} className="rounded-xl bg-primary-indigo px-5 py-2 font-semibold text-white disabled:opacity-50">{save.isPending ? "Saving..." : editingId ? "Update" : "Create"}</button></div></form>}
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{stats.map(({ label,value,icon: Icon }) => <div key={label} className="rounded-2xl border bg-card p-5 shadow-sm"><div className="flex justify-between text-xs text-muted-foreground"><span>{label}</span><Icon className="h-4 w-4 text-teal" /></div><div className="mt-3 text-3xl font-bold">{value}</div></div>)}</div>
-    <div className="rounded-2xl border bg-card p-6 shadow-sm"><div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex gap-4 overflow-auto">{(["policies","assets","trainings","documents"] as Tab[]).map((item) => <button key={item} onClick={() => { setTab(item); close(); }} className={`border-b-2 pb-2 text-sm font-semibold capitalize ${tab === item ? "border-teal text-teal" : "border-transparent text-muted-foreground"}`}>{item} ({data[item].length})</button>)}</div><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${tab}...`} className="rounded-xl border py-2 pl-9 pr-3 text-sm" /></div></div>
-      {query.isLoading ? <div className="py-12 text-center text-muted-foreground">Loading HRMS records...</div> : query.error ? <div className="text-red-600">{query.error.message}</div> : <div className="space-y-3">{records.map((record) => <div key={record.id} className="flex items-center justify-between gap-4 rounded-xl border p-4"><div className="min-w-0"><h3 className="truncate text-sm font-semibold">{record.name}</h3>{"type" in record ? <p className="text-xs text-muted-foreground">{record.type} · {record.user ? `${record.user.firstName} ${record.user.lastName}` : "Unassigned"} · {record.status}</p> : <p className="text-xs text-muted-foreground">{record.description || "No description"}</p>}</div><div className="flex shrink-0 gap-2">{"fileUrl" in record && record.fileUrl && <a href={record.fileUrl} target="_blank" rel="noreferrer" title="Open"><ExternalLink className="h-4 w-4" /></a>}<button onClick={() => edit(record)} title="Edit"><Pencil className="h-4 w-4" /></button><button onClick={() => window.confirm(`Delete this ${singular[tab]}?`) && remove.mutate({ id: record.id, type: singular[tab] })} title="Delete" className="hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div></div>)}{records.length === 0 && <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">No {tab} found. Use “Add {singular[tab]}” to create one.</div>}</div>}
-    </div>
-  </div></DashboardLayout>;
+
+  // Fetch Leaves
+  const { data: leaves = [], isLoading: isLoadingLeaves } = useQuery({
+    queryKey: ["leaves"],
+    queryFn: () => apiClient.get("/hrms/leaves").then((res) => res.data),
+  });
+
+  const activeLeaves = leaves.filter((l: any) => l.status === "APPROVED").length;
+  const pendingLeaves = leaves.filter((l: any) => l.status === "PENDING").length;
+  
+  // Calculate today's attendance for stats
+  const today = new Date().setHours(0,0,0,0);
+  const presentToday = attendance.filter((a: any) => new Date(a.date).getTime() === today && a.status === "PRESENT").length;
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-heading text-3xl font-bold text-midnight-navy dark:text-white">
+              HR & Attendance
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Manage attendance, time tracking, and leave requests.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowLeaveModal(true)}
+            className="flex items-center gap-2 rounded-xl bg-primary-indigo px-4 py-2 text-sm font-medium text-white transition-all hover:bg-primary-indigo/90"
+          >
+            <Plus className="h-4 w-4" />
+            Request Leave
+          </button>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-4">
+          
+          {/* Left Sidebar (Widgets & Stats) */}
+          <div className="space-y-6 lg:col-span-1">
+            <ClockInWidget />
+            
+            {/* Quick Stats */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-midnight-navy">
+              <h3 className="mb-4 font-heading text-sm font-semibold text-gray-900 dark:text-white">
+                Today's Overview
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{presentToday}</p>
+                    <p className="text-xs font-medium text-gray-500">Clocked In</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                    <Briefcase className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeLeaves}</p>
+                    <p className="text-xs font-medium text-gray-500">On Leave</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                    <CalendarIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeaves}</p>
+                    <p className="text-xs font-medium text-gray-500">Pending Requests</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Calendar View */}
+          <div className="lg:col-span-3">
+            {(isLoadingAttendance || isLoadingLeaves) ? (
+              <div className="flex h-96 items-center justify-center rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-midnight-navy">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-indigo border-t-transparent"></div>
+              </div>
+            ) : (
+              <HrmsCalendar attendance={attendance} leaves={leaves} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showLeaveModal && (
+        <LeaveRequestModal onClose={() => setShowLeaveModal(false)} />
+      )}
+    </DashboardLayout>
+  );
 }

@@ -1,39 +1,28 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
-import { use } from 'react';
-import { ArrowLeft, Plus, MoreHorizontal, Calendar, MessageSquare, Paperclip, Clock } from 'lucide-react';
+import { use, useState } from 'react';
+import { ArrowLeft, Plus, LayoutDashboard, KanbanSquare, BarChart, List } from 'lucide-react';
 import Link from 'next/link';
+import { KanbanBoard } from '@/features/tasks/components/kanban-board';
+import { ProjectGantt } from '@/features/projects/components/project-gantt';
 
-export default function ProjectKanbanPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ProjectWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'overview' | 'kanban' | 'timeline' | 'list'>('kanban');
+  
+  // Need project details
+  const { data: project } = useQuery({
+    queryKey: ['project', id],
+    queryFn: () => apiClient.get(`/projects`).then((res) => res.data.find((p: any) => p.id === id)),
+  });
 
-  // In a real implementation, we'd fetch the project and its tasks
-  // For the UI demonstration, we'll fetch tasks and mock the grouping
   const { data: tasks, isLoading, error } = useQuery({
     queryKey: ['tasks', 'project', id],
     queryFn: () => apiClient.get(`/tasks?projectId=${id}`).then((res) => res.data),
   });
-
-  const columns = [
-    { id: 'TODO', title: 'To Do', color: 'bg-gray-100 dark:bg-gray-800' },
-    { id: 'IN_PROGRESS', title: 'In Progress', color: 'bg-blue-50 dark:bg-blue-900/20' },
-    { id: 'REVIEW', title: 'Review', color: 'bg-yellow-50 dark:bg-yellow-900/20' },
-    { id: 'COMPLETED', title: 'Done', color: 'bg-green-50 dark:bg-green-900/20' },
-  ];
-  const updateTask = useMutation({
-    mutationFn: ({ taskId, status }: { taskId: string; status: string }) =>
-      apiClient.patch(`/tasks/${taskId}`, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', 'project', id] }),
-  });
-
-  const getTasksByStatus = (status: string) => {
-    if (!tasks) return [];
-    return tasks.filter((t: any) => t.status === status);
-  };
 
   return (
     <DashboardLayout>
@@ -46,26 +35,81 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ id: st
             </Link>
             <div>
               <h1 className="font-heading text-2xl font-bold text-midnight-navy dark:text-white">
-                Project Kanban
+                {project ? project.name : 'Project Workspace'}
               </h1>
+              <div className="mt-1 flex items-center gap-2">
+                <span className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
+                  project?.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                  project?.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                }`}>
+                  {project?.status || 'LOADING...'}
+                </span>
+                {project?.budget && (
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Budget: ₹{project.budget.toLocaleString()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex -space-x-2 mr-4">
-              {[...Array(4)].map((_, i) => (
+              {[...Array(3)].map((_, i) => (
                 <div key={i} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-primary-indigo/20 text-xs font-bold text-primary-indigo dark:border-midnight-navy">
                   {String.fromCharCode(65 + i)}
                 </div>
               ))}
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-xs font-medium text-gray-600 dark:border-midnight-navy dark:bg-gray-800 dark:text-gray-400">
-                +2
-              </div>
             </div>
             <Link href="/tasks" className="flex items-center gap-2 rounded-xl bg-primary-indigo px-4 py-2 text-sm font-medium text-white transition-all hover:bg-primary-indigo/90">
               <Plus className="h-4 w-4" />
               New Task
             </Link>
           </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex shrink-0 items-center gap-6 border-b border-gray-100 px-2 dark:border-gray-800">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'border-primary-indigo text-primary-indigo'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <LayoutDashboard className="h-4 w-4" /> Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('kanban')}
+            className={`flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+              activeTab === 'kanban'
+                ? 'border-primary-indigo text-primary-indigo'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <KanbanSquare className="h-4 w-4" /> Kanban Board
+          </button>
+          <button
+            onClick={() => setActiveTab('timeline')}
+            className={`flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+              activeTab === 'timeline'
+                ? 'border-primary-indigo text-primary-indigo'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <BarChart className="h-4 w-4" /> Timeline (Gantt)
+          </button>
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+              activeTab === 'list'
+                ? 'border-primary-indigo text-primary-indigo'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <List className="h-4 w-4" /> List View
+          </button>
         </div>
 
         {/* Loading State */}
@@ -81,86 +125,89 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
-        {/* Kanban Board */}
+        {/* Tab Content */}
         {!isLoading && !error && (
-          <div className="flex flex-1 gap-6 overflow-x-auto pb-4">
-            {columns.map((col) => (
-              <div key={col.id} className="flex w-80 shrink-0 flex-col rounded-2xl bg-gray-50/50 p-4 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-heading font-semibold text-midnight-navy dark:text-white">
-                      {col.title}
-                    </h3>
-                    <span className="flex h-5 items-center justify-center rounded-full bg-gray-200 px-2 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                      {getTasksByStatus(col.id).length}
-                    </span>
-                  </div>
-                  <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {activeTab === 'overview' && (
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-midnight-navy md:col-span-2">
+                  <h3 className="font-heading font-semibold text-midnight-navy dark:text-white mb-4">Project Description</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {project?.description || 'No description provided.'}
+                  </p>
                 </div>
-
-                <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-                  {getTasksByStatus(col.id).map((task: any) => (
-                    <div
-                      key={task.id}
-                      className="group cursor-grab rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing dark:border-gray-800 dark:bg-midnight-navy"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          task.priority === 'HIGH' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                          task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        }`}>
-                          {task.priority || 'LOW'}
-                        </span>
-                        <select value={task.status} onChange={(event) => updateTask.mutate({ taskId: task.id, status: event.target.value })} className="rounded border border-gray-200 bg-white px-1 py-0.5 text-[10px] dark:border-gray-700 dark:bg-gray-900">
-                          <option value="TODO">To do</option><option value="IN_PROGRESS">In progress</option><option value="REVIEW">Review</option><option value="TESTING">Testing</option><option value="COMPLETED">Done</option>
-                        </select>
-                      </div>
-                      
-                      <h4 className="font-heading text-sm font-semibold text-midnight-navy dark:text-white">
-                        {task.title}
-                      </h4>
-                      
-                      {task.dueDate && (
-                        <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span className={new Date(task.dueDate) < new Date() ? 'text-red-500' : ''}>
-                            {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-3 dark:border-gray-800">
-                        <div className="flex items-center gap-3 text-gray-400">
-                          <div className="flex items-center gap-1 hover:text-gray-600 dark:hover:text-gray-300">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            <span className="text-xs">{(task.id.charCodeAt(0) % 5)}</span>
-                          </div>
-                          <div className="flex items-center gap-1 hover:text-gray-600 dark:hover:text-gray-300">
-                            <Paperclip className="h-3.5 w-3.5" />
-                            <span className="text-xs">{(task.id.charCodeAt(1) % 3)}</span>
-                          </div>
-                        </div>
-                        {task.assignee && (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-indigo/10 text-[10px] font-bold text-primary-indigo" title={task.assignee.email}>
-                            {task.assignee.firstName?.[0] || 'U'}
-                          </div>
-                        )}
-                      </div>
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-midnight-navy">
+                  <h3 className="font-heading font-semibold text-midnight-navy dark:text-white mb-4">Project Lead</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-indigo/10 text-primary-indigo font-bold">
+                      {project?.lead?.firstName?.[0] || 'L'}
                     </div>
-                  ))}
-                  
-                  {/* Empty state for column */}
-                  {getTasksByStatus(col.id).length === 0 && (
-                    <div className="flex h-24 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-transparent dark:border-gray-700/50">
-                      <span className="text-sm font-medium text-gray-400">Drop tasks here</span>
+                    <div>
+                      <p className="text-sm font-medium text-midnight-navy dark:text-white">
+                        {project?.lead?.firstName} {project?.lead?.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{project?.lead?.email}</p>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            ))}
+            )}
+
+            {activeTab === 'kanban' && (
+              <KanbanBoard projectId={id} tasks={tasks || []} />
+            )}
+
+            {activeTab === 'timeline' && (
+              <ProjectGantt tasks={tasks || []} />
+            )}
+
+            {activeTab === 'list' && (
+              <div className="rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-midnight-navy overflow-hidden">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+                    <tr>
+                      <th className="p-4 font-medium text-gray-500 dark:text-gray-400">Task Name</th>
+                      <th className="p-4 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                      <th className="p-4 font-medium text-gray-500 dark:text-gray-400">Priority</th>
+                      <th className="p-4 font-medium text-gray-500 dark:text-gray-400">Assignee</th>
+                      <th className="p-4 font-medium text-gray-500 dark:text-gray-400">Due Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {tasks?.map((task: any) => (
+                      <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="p-4 font-medium text-midnight-navy dark:text-white">{task.title}</td>
+                        <td className="p-4">
+                          <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                            {task.status}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            task.priority === 'HIGH' ? 'bg-red-100 text-red-700' :
+                            task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {task.priority || 'LOW'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-600 dark:text-gray-300">
+                          {task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : 'Unassigned'}
+                        </td>
+                        <td className="p-4 text-gray-600 dark:text-gray-300">
+                          {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {(!tasks || tasks.length === 0) && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-gray-500">No tasks found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

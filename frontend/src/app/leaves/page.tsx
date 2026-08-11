@@ -3,12 +3,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
-import { Plus, Check, X, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Plus, Check, X, Calendar as CalendarIcon, Clock, List as ListIcon } from 'lucide-react';
 import { useState } from 'react';
+import { LeaveCalendar } from '@/components/leaves/leave-calendar';
 
 export default function LeavesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState('ALL');
+  const [viewMode, setViewMode] = useState<'LIST' | 'CALENDAR'>('LIST');
 
   const { data: leaves, isLoading, error } = useQuery({
     queryKey: ['leaves', filter],
@@ -45,20 +47,47 @@ export default function LeavesPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-2">
-          {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((status) => (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                  filter === status
+                    ? 'bg-primary-indigo text-white shadow-sm'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                }`}
+              >
+                {status === 'ALL' ? 'All Requests' : status}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex items-center gap-2 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/50">
             <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-                filter === status
-                  ? 'bg-primary-indigo text-white shadow-sm'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+              onClick={() => setViewMode('LIST')}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                viewMode === 'LIST'
+                  ? 'bg-white text-midnight-navy shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
-              {status === 'ALL' ? 'All Requests' : status}
+              <ListIcon className="h-4 w-4" />
+              List
             </button>
-          ))}
+            <button
+              onClick={() => setViewMode('CALENDAR')}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                viewMode === 'CALENDAR'
+                  ? 'bg-white text-midnight-navy shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Calendar
+            </button>
+          </div>
         </div>
 
         {/* Loading State */}
@@ -75,10 +104,13 @@ export default function LeavesPage() {
           </div>
         )}
 
-        {/* Leaves List */}
+        {/* Leaves Content */}
         {!isLoading && !error && (
-          <div className="space-y-4">
-            {leaves?.length === 0 ? (
+          viewMode === 'CALENDAR' ? (
+            <LeaveCalendar leaves={leaves || []} />
+          ) : (
+            <div className="space-y-4">
+              {leaves?.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/30">
                 <CalendarIcon className="h-8 w-8 text-gray-400 opacity-50" />
                 <p className="text-sm text-gray-500">No leave requests found.</p>
@@ -150,7 +182,8 @@ export default function LeavesPage() {
                 </div>
               ))
             )}
-          </div>
+            </div>
+          )
         )}
       </div>
     </DashboardLayout>
