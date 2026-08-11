@@ -189,52 +189,6 @@ export class HrmsService {
   static async getDepartmentDistribution(companyId: string) {
   }
 
-  static async create(data: CreateHrmsInput) {
-    return prisma.document.create({
-      data: {
-        name: data.name || data.type || "HRMS Record",
-        description: data.description,
-        fileUrl: "",
-        fileType: "hrms",
-        folder: "HRMS",
-        uploaderId: data.companyId,
-      },
-    });
-  }
-
-  static async getDashboard(companyId: string) {
-    return this.getDashboardStats(companyId);
-  }
-
-  static async getDashboardStats(companyId: string) {
-    const [totalEmployees, activeEmployees, newHires, pendingLeaves, attendanceToday] = await Promise.all([
-      prisma.user.count({ where: { companyId } }),
-      prisma.user.count({ where: { companyId, isActive: true } }),
-      prisma.user.count({
-        where: {
-          companyId,
-          createdAt: { gte: new Date(new Date().setDate(new Date().getDate() - 30)) },
-        },
-      }),
-      prisma.leave.count({ where: { status: "PENDING" as any, user: { companyId } } }),
-      prisma.attendance.count({
-        where: {
-          date: new Date(new Date().setHours(0, 0, 0, 0)),
-          status: "PRESENT" as any,
-          user: { companyId },
-        },
-      }),
-    ]);
-    return { totalEmployees, activeEmployees, newHires, pendingLeaves, attendanceToday };
-  }
-
-  static async getDepartmentDistribution(companyId: string) {
-    return prisma.department.findMany({
-      where: { companyId },
-      include: { _count: { select: { users: true } } },
-    });
-  }
-
   static async getLeaveBalances(companyId: string, userId?: string) {
     const where: any = { user: { companyId } };
     if (userId) where.userId = userId;

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { EmailService } from "../email/email-service";
 import { getWelcomeEmailTemplate } from "../email/templates";
+
+export class EmployeeService {
   static async getAll(companyId: string) {
     return prisma.user.findMany({
       where: { companyId, isActive: true },
@@ -46,7 +48,7 @@ import { getWelcomeEmailTemplate } from "../email/templates";
     ifscCode?: string;
     panNumber?: string;
   }) {
-    return prisma.user.create({
+    const newEmployee = await prisma.user.create({
       data: {
         email: data.email,
         authUserId: data.authUserId,
@@ -98,7 +100,6 @@ import { getWelcomeEmailTemplate } from "../email/templates";
             panNumber: true,
           },
         },
-      },
       },
     });
 

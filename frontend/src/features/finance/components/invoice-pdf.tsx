@@ -50,7 +50,7 @@ export const InvoiceDocument = ({ invoice, company, client }: any) => (
           <Text style={styles.companyName}>{company.name}</Text>
           <Text style={styles.text}>{company.address || 'Company Address'}</Text>
           <Text style={styles.text}>{company.email || 'contact@company.com'}</Text>
-          <Text style={styles.text}>{company.gst ? \`GSTIN: \${company.gst}\` : ''}</Text>
+          <Text style={styles.text}>{company.gst ? `GSTIN: \${company.gst}` : ''}</Text>
         </View>
       </View>
 

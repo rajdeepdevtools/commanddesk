@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { EmailService } from "../email/email-service";
 import { getPayslipTemplate } from "../email/templates";
+
+export class PayrollService {
   static async getPayrollHistory(companyId: string) {
     return prisma.payroll.findMany({
       where: { user: { companyId } }, // Ensure users belong to the company
@@ -39,7 +41,7 @@ import { getPayslipTemplate } from "../email/templates";
     const totalDeductions = tax + pf + esi + otherDeductions;
     const netSalary = totalEarnings - totalDeductions;
 
-    return prisma.payroll.create({
+    const payroll = await prisma.payroll.create({
       data: {
         userId,
         month: parseInt(data.month),

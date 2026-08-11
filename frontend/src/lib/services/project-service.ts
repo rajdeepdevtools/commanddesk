@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { EmailService } from "../email/email-service";
 import { getNewProjectTemplate } from "../email/templates";
+
+export class ProjectService {
   static async getAll(companyId: string) {
     return prisma.project.findMany({
       where: { companyId },
@@ -31,7 +33,7 @@ import { getNewProjectTemplate } from "../email/templates";
     leadId: string; startDate?: Date; endDate?: Date; budget?: number;
     priority?: string; color?: string; isBillable?: boolean;
   }) {
-    return prisma.project.create({
+    const newProject = await prisma.project.create({
       data: {
         name: data.name,
         description: data.description,

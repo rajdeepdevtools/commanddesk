@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/lib/saas/permissions";
 
 export async function GET(request: Request) {
   try {
-    const { companyId } = await authorize(PERMISSIONS.HR_VIEW);
+    const { companyId } = await authorize(PERMISSIONS.HRMS_VIEW);
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
@@ -20,9 +20,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { user } = await authorize();
+    const { userId } = await authorize(PERMISSIONS.HRMS_VIEW);
     
-    const attendance = await HrmsService.clockIn(user.id);
+    const attendance = await HrmsService.clockIn(userId);
     return NextResponse.json(attendance, { status: 201 });
   } catch (error: any) {
     return apiError(error, error.message || "Unable to clock in");
@@ -31,9 +31,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { user } = await authorize();
+    const { userId } = await authorize(PERMISSIONS.HRMS_VIEW);
     
-    const attendance = await HrmsService.clockOut(user.id);
+    const attendance = await HrmsService.clockOut(userId);
     return NextResponse.json(attendance);
   } catch (error: any) {
     return apiError(error, error.message || "Unable to clock out");

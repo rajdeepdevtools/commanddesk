@@ -14,12 +14,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user } = await authorize(PERMISSIONS.HR_MANAGE);
+    const { userId } = await authorize(PERMISSIONS.HRMS_MANAGE);
     const { id } = await params;
     const body = await request.json();
     
     const validatedData = UpdateLeaveSchema.parse(body);
-    const leave = await HrmsService.updateLeaveStatus(id, validatedData.status, user.id);
+    const leave = await HrmsService.updateLeaveStatus(id, validatedData.status, userId);
     
     return NextResponse.json(leave);
   } catch (error: any) {

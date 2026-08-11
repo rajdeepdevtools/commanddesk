@@ -14,7 +14,7 @@ const CreateLeaveSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    const { companyId } = await authorize(PERMISSIONS.HR_VIEW);
+    const { companyId } = await authorize(PERMISSIONS.HRMS_VIEW);
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
@@ -28,11 +28,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { user } = await authorize();
+    const { userId } = await authorize(PERMISSIONS.HRMS_VIEW);
     const body = await request.json();
     
     const validatedData = CreateLeaveSchema.parse(body);
-    const leave = await HrmsService.createLeaveRequest(user.id, validatedData);
+    const leave = await HrmsService.createLeaveRequest(userId, validatedData);
     
     return NextResponse.json(leave, { status: 201 });
   } catch (error: any) {

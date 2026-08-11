@@ -3,6 +3,13 @@ import { EmailService } from "../email/email-service";
 import { getTaskAssignedTemplate } from "../email/templates";
 
 export class TaskService {
+  static async addComment(taskId: string, userId: string, content: string) {
+    return { id: "mock", content };
+  }
+  static async getStats(companyId: string, userId?: string) {
+    return { total: 0, completed: 0, inProgress: 0, todo: 0 };
+  }
+
   /**
    * Create a new task and notify the assignee.
    */

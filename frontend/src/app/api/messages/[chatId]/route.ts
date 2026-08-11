@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ChatService } from "@/lib/services/chat-service";
 import { getUserSession } from "@/lib/auth/session";
 
-export async function GET(request: Request, { params }: { params: { chatId: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ chatId: string }> }) {
   try {
     const session = await getUserSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: { chatId: stri
   }
 }
 
-export async function POST(request: Request, { params }: { params: { chatId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ chatId: string }> }) {
   try {
     const session = await getUserSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

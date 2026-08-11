@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { apiClient } from "@/lib/api-client";
 import { SalesPipeline } from "@/features/crm/components/sales-pipeline";
 import { LeadModal } from "@/features/crm/components/lead-modal";
-import { Users, Briefcase, Plus, Search, Trello, List, Building } from "lucide-react";
+import { Users, Briefcase, Plus, Search, Kanban, List, Building } from "lucide-react";
 
 export default function CrmPage() {
   const [activeTab, setActiveTab] = useState<"pipeline" | "leads" | "clients">("pipeline");
@@ -96,7 +96,7 @@ export default function CrmPage() {
                 : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
             }`}
           >
-            <Trello className="h-4 w-4" />
+            <Kanban className="h-4 w-4" />
             Sales Pipeline
           </button>
           <button

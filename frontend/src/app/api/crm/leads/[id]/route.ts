@@ -14,7 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { companyId } = await authorize(PERMISSIONS.SALES_MANAGE);
+    const { companyId } = await authorize(PERMISSIONS.CRM_MANAGE);
     const { id } = await params;
     const body = await request.json();
     

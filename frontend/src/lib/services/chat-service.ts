@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { EmailService } from "../email/email-service";
 import { getChatMentionTemplate } from "../email/templates";
+
+export class ChatService {
   /**
    * Fetch all chats that a user is part of.
    */

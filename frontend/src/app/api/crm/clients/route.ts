@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/lib/saas/permissions";
 
 export async function GET(request: Request) {
   try {
-    const { companyId } = await authorize(PERMISSIONS.SALES_VIEW);
+    const { companyId } = await authorize(PERMISSIONS.CRM_VIEW);
     const clients = await CrmService.getClients(companyId);
     return NextResponse.json(clients);
   } catch (error) {

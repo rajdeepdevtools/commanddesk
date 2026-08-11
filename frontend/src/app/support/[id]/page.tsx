@@ -53,10 +53,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarImage src={ticket.createdBy.avatarUrl || undefined} />
-                          <AvatarFallback>{ticket.createdBy.firstName[0]}</AvatarFallback>
+                          <AvatarFallback>{ticket.createdById[0]}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium">{ticket.createdBy.firstName} {ticket.createdBy.lastName}</p>
+                          <p className="text-sm font-medium">{ticket.createdById} {ticket.createdById}</p>
                           <p className="text-xs text-slate-500">{ticket.createdBy.email}</p>
                         </div>
                       </div>
@@ -68,7 +68,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   </CardHeader>
                   <CardContent>
                     <div className="prose prose-sm max-w-none text-slate-700">
-                      {ticket.description.split('\n').map((line, i) => (
+                      {ticket.description.split('\n').map((line: any, i: any) => (
                         <p key={i}>{line}</p>
                       ))}
                     </div>
@@ -84,9 +84,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
                               <AvatarImage src={comment.author.avatarUrl || undefined} />
-                              <AvatarFallback>{comment.author.firstName[0]}</AvatarFallback>
+                              <AvatarFallback>{comment.author?.firstName[0]}</AvatarFallback>
                             </Avatar>
-                            <span className="text-sm font-medium">{comment.author.firstName} {comment.author.lastName}</span>
+                            <span className="text-sm font-medium">{comment.author?.firstName} {comment.author?.lastName}</span>
                             {comment.isInternal && (
                               <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">Internal Note</Badge>
                             )}

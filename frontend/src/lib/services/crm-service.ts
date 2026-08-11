@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
 export class CrmService {
+  static async getClientById(companyId: string, id: string) {
+    return prisma.client.findUnique({ where: { id } });
+  }
+
   // ================= LEADS ================= //
 
   static async getLeads(companyId: string) {

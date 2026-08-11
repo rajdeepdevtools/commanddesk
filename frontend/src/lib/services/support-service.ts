@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { EmailService } from "../email/email-service";
 import { getSupportTicketTemplate } from "../email/templates";
+
+export class SupportService {
+  static async getTicketById(companyId: string, id: string) {
+    return prisma.ticket.findUnique({ where: { id }, include: { createdBy: true, assignedTo: true, comments: { include: { author: true } } } });
+  }
+
   // ================= TICKETS ================= //
 
   static async getTickets(companyId: string, userId: string, role: string) {
@@ -23,7 +29,7 @@ import { getSupportTicketTemplate } from "../email/templates";
   }
 
   static async createTicket(companyId: string, userId: string, data: any) {
-    return prisma.ticket.create({
+    const ticket = await prisma.ticket.create({
       data: {
         companyId,
         createdById: userId,

@@ -25,6 +25,7 @@ import {
   Loader2,
   LogOut,
   X,
+  Package,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -59,10 +60,12 @@ const sidebarItems: SidebarItem[] = [
     ],
   },
   { label: "HRMS", icon: <UserCircle size={20} />, href: "/hrms", permission: PERMISSIONS.HRMS_VIEW },
+  { label: "Recruitment", icon: <Briefcase size={20} />, href: "/recruitment", permission: PERMISSIONS.HRMS_VIEW },
   { label: "Payroll", icon: <Receipt size={20} />, href: "/payroll", permission: PERMISSIONS.PAYROLL_SELF },
   { label: "Projects", icon: <Briefcase size={20} />, href: "/projects", permission: PERMISSIONS.PROJECTS_VIEW },
   { label: "Tasks", icon: <CheckSquare size={20} />, href: "/tasks", permission: PERMISSIONS.TASKS_VIEW },
   { label: "CRM", icon: <Users size={20} />, href: "/crm", permission: PERMISSIONS.CRM_VIEW },
+  { label: "Inventory", icon: <Package size={20} />, href: "/inventory", permission: PERMISSIONS.FINANCE_VIEW },
   { label: "Finance", icon: <Receipt size={20} />, href: "/finance", permission: PERMISSIONS.FINANCE_VIEW },
   { label: "Support", icon: <MessageSquare size={20} />, href: "/support", permission: PERMISSIONS.SUPPORT_VIEW },
   { label: "Documents", icon: <FileText size={20} />, href: "/documents", permission: PERMISSIONS.DOCUMENTS_VIEW },

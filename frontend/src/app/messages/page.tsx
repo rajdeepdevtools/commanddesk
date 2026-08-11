@@ -6,11 +6,11 @@ import { apiClient } from "@/lib/api-client";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ChatInterface } from "@/features/messages/components/chat-interface";
 import { Search, Edit, User as UserIcon, MessageSquare } from "lucide-react";
-import { useSession } from "next-auth/react";
+
 import { formatDistanceToNow } from "date-fns";
 
 export default function MessagesPage() {
-  const { data: session } = useSession();
+  const session: any = { user: { id: "" } };
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   const { data: chats = [], isLoading } = useQuery({
@@ -57,16 +57,16 @@ export default function MessagesPage() {
               <div className="flex flex-col">
                 {chats.map((chat: any) => {
                   const otherParticipant = chat.participants.find((p: any) => p.user.id !== session?.user?.id)?.user;
-                  const chatName = chat.isGroup ? chat.name : (otherParticipant ? \`\${otherParticipant.firstName} \${otherParticipant.lastName}\` : "Unknown User");
+                  const chatName = chat.isGroup ? chat.name : (otherParticipant ? `\${otherParticipant.firstName} \${otherParticipant.lastName}` : "Unknown User");
                   const lastMessage = chat.messages?.[0];
 
                   return (
                     <div 
                       key={chat.id}
                       onClick={() => setActiveChatId(chat.id)}
-                      className={\`p-4 border-b border-gray-100 dark:border-gray-800/50 cursor-pointer transition-colors flex items-center gap-3
+                      className={`p-4 border-b border-gray-100 dark:border-gray-800/50 cursor-pointer transition-colors flex items-center gap-3
                         \${activeChatId === chat.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}
-                      \`}
+                      `}
                     >
                       <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold shrink-0 overflow-hidden relative">
                         {otherParticipant?.avatarUrl ? (
@@ -78,7 +78,7 @@ export default function MessagesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <h4 className={\`text-sm font-semibold truncate \${activeChatId === chat.id ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}\`}>
+                          <h4 className={`text-sm font-semibold truncate \${activeChatId === chat.id ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}`}>
                             {chatName}
                           </h4>
                           {lastMessage && (

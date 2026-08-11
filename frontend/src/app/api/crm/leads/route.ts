@@ -18,7 +18,7 @@ const CreateLeadSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    const { companyId } = await authorize(PERMISSIONS.SALES_VIEW);
+    const { companyId } = await authorize(PERMISSIONS.CRM_VIEW);
     const leads = await CrmService.getLeads(companyId);
     return NextResponse.json(leads);
   } catch (error) {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { companyId } = await authorize(PERMISSIONS.SALES_MANAGE);
+    const { companyId } = await authorize(PERMISSIONS.CRM_MANAGE);
     const body = await request.json();
     const validatedData = CreateLeadSchema.parse(body);
     

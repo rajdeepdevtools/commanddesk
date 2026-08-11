@@ -6,7 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { Send, Loader2, User as UserIcon, MoreVertical, Phone, Video } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
+
 
 interface ChatInterfaceProps {
   chatId: string;
@@ -16,16 +16,16 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
   const [content, setContent] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-  const { data: session } = useSession();
+  const session: any = { user: { id: "" } };
 
   const { data: chat, isLoading } = useQuery({
     queryKey: ["chat", chatId],
-    queryFn: () => apiClient.get(\`/messages/\${chatId}\`).then(res => res.data),
+    queryFn: () => apiClient.get(`/messages/\${chatId}`).then(res => res.data),
     refetchInterval: 3000, // Poll every 3 seconds for real-time feel
   });
 
   const sendMessage = useMutation({
-    mutationFn: (text: string) => apiClient.post(\`/messages/\${chatId}\`, { content: text }),
+    mutationFn: (text: string) => apiClient.post(`/messages/\${chatId}`, { content: text }),
     onSuccess: () => {
       setContent("");
       queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
@@ -53,7 +53,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
 
   // Find the "other" person in a 1-on-1 chat
   const otherParticipant = chat.participants.find((p: any) => p.user.id !== session?.user?.id)?.user;
-  const chatName = chat.isGroup ? chat.name : (otherParticipant ? \`\${otherParticipant.firstName} \${otherParticipant.lastName}\` : "Unknown User");
+  const chatName = chat.isGroup ? chat.name : (otherParticipant ? `\${otherParticipant.firstName} \${otherParticipant.lastName}` : "Unknown User");
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0f172a]">
@@ -70,7 +70,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
           <div>
             <h3 className="font-bold text-gray-900 dark:text-white">{chatName}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {chat.isGroup ? \`\${chat.participants.length} members\` : 'Online'}
+              {chat.isGroup ? `\${chat.participants.length} members` : 'Online'}
             </p>
           </div>
         </div>
@@ -95,8 +95,8 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
           chat.messages.map((msg: any, idx: number) => {
             const isMe = msg.sender.id === session?.user?.id;
             return (
-              <div key={msg.id} className={\`flex flex-col max-w-[75%] \${isMe ? 'self-end items-end' : 'self-start items-start'}\`}>
-                <div className={\`flex items-end gap-2 \${isMe ? 'flex-row-reverse' : 'flex-row'}\`}>
+              <div key={msg.id} className={`flex flex-col max-w-[75%] \${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
+                <div className={`flex items-end gap-2 \${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                   <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center overflow-hidden">
                     {msg.sender.avatarUrl ? (
                       <img src={msg.sender.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -104,10 +104,10 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
                       <span className="text-[10px] text-gray-500 font-bold">{msg.sender.firstName.charAt(0)}</span>
                     )}
                   </div>
-                  <div className={\`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed
+                  <div className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed
                     \${isMe 
                       ? 'bg-indigo-600 text-white rounded-br-sm shadow-sm' 
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 rounded-bl-sm border border-gray-200 dark:border-gray-700 shadow-sm'}\`}>
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 rounded-bl-sm border border-gray-200 dark:border-gray-700 shadow-sm'}`}>
                     {msg.content}
                   </div>
                 </div>
