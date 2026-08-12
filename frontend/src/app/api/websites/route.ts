@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { WebsiteService } from "@/lib/services/website-service";
-import { authorize } from "@/lib/saas/authorize";
 import { apiError } from "@/lib/saas/api-error";
-import { PERMISSIONS } from "@/lib/saas/permissions";
 import { getUserSession } from "@/lib/auth/session";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // For now we allow any logged in user, in real app check WEBSITES_VIEW
     const session = await getUserSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session.user.companyId) return NextResponse.json({ error: "Company not found" }, { status: 400 });
 
     const sites = await WebsiteService.getSites(session.user.companyId);
     return NextResponse.json(sites);

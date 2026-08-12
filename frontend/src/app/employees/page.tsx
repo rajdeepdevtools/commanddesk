@@ -32,6 +32,7 @@ type Employee = {
   role: string;
   isActive?: boolean;
   departmentId?: string | null;
+  departmentIds?: string[] | null;
   department?: { id: string; name: string } | null;
   avatarUrl?: string | null;
   employeeProfile?: {

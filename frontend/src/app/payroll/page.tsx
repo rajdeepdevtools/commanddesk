@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { apiClient } from "@/lib/api-client";
 import { GeneratePayrollModal } from "@/features/payroll/components/generate-payroll-modal";
 import { PayslipPDF } from "@/features/payroll/components/payslip-pdf";
-import { IndianRupee, FileText, Receipt, Plus, Download, Calculator, CheckCircle2 } from "lucide-react";
+import { IndianRupee, FileText, Receipt, Plus, Download, Calculator, CheckCircle2, Calendar } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 
 export default function PayrollPage() {
