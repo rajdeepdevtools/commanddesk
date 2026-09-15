@@ -1,0 +1,16 @@
+{
+  "name": "SOLUBRIX CommandDesk",
+  "short_name": "CommandDesk",
+  "description": "Enterprise SaaS Business Operating System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4338CA",
+  "icons": [
+    {
+      "src": "/brand/solubrix-icon-transparent.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}

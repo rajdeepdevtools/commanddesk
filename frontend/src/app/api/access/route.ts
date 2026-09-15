@@ -42,20 +42,11 @@ export async function GET() {
         role: access.role,
       },
     });
-  } catch {
-    // Provide fallback workspace access context so sidebar navigation is seamless
-    const allPermissions = Object.values(PERMISSIONS);
-    return NextResponse.json({
-      companyId: "default",
-      role: "ORGANIZATION_OWNER",
-      permissions: allPermissions,
-      user: {
-        id: "demo",
-        email: "admin@solubrix.com",
-        firstName: "Super",
-        lastName: "Admin",
-        role: "ORGANIZATION_OWNER",
-      },
-    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || "Unauthorized access" },
+      { status: 401 }
+    );
   }
 }
+

@@ -256,7 +256,35 @@ export async function POST(request: Request) {
       panNumber: body.panNumber?.trim() || undefined,
     });
 
-    return NextResponse.json(employee, { status: 201 });
+    // Create an activation token for the new employee
+    const activationToken = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await prisma.verificationToken.upsert({
+      where: {
+        identifier_token: {
+          identifier: email,
+          token: activationToken,
+        },
+      },
+      create: {
+        identifier: email,
+        token: activationToken,
+        expires: expiresAt,
+      },
+      update: {
+        token: activationToken,
+        expires: expiresAt,
+      },
+    }).catch(() => null);
+
+    const responsePayload = {
+      ...employee,
+      activationToken,
+      activationLink: `/auth/activate?email=${encodeURIComponent(email)}&token=${activationToken}`,
+    };
+
+    return NextResponse.json(responsePayload, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/employees error:", error);
     return NextResponse.json(

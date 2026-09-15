@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { apiClient } from "@/lib/api-client";
-import { Sparkles, Send, User, Bot, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, Send, User, Bot, Loader as Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface Message {

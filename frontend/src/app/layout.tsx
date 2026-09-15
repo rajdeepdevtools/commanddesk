@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora, Inter, IBM_Plex_Sans } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { SessionProvider } from "@/providers/session-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { AbilityProvider } from "@/providers/ability-provider";
+import { PwaInstallPrompt } from "@/components/layout/pwa-install";
 import { auth } from "@/lib/auth";
 import "./globals.css";
 
@@ -11,12 +12,14 @@ const sora = Sora({
   variable: "--font-heading",
   subsets: ["latin"],
   display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 });
 
 const inter = Inter({
   variable: "--font-body",
   subsets: ["latin"],
   display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 });
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -24,12 +27,18 @@ const ibmPlexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
   display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 });
+
+export const viewport: Viewport = {
+  themeColor: "#4338CA",
+};
 
 export const metadata: Metadata = {
   title: "SOLUBRIX - Solutions That Build Futures",
   description:
     "Manage • Monitor • Grow - All-in-one Enterprise SaaS Business Operating System",
+  manifest: "/manifest.json",
   keywords: [
     "ERP",
     "CRM",
@@ -64,6 +73,7 @@ export default async function RootLayout({
             <AbilityProvider role={role}>
               <QueryProvider>
                 {children}
+                <PwaInstallPrompt />
               </QueryProvider>
             </AbilityProvider>
           </SessionProvider>

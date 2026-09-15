@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { addMonths, format } from "date-fns";
 
+export interface CreateInvoiceItemInput {
+  description: string;
+  quantity: number;
+  rate: number;
+}
+
 export class InvoiceService {
   static async getAll(companyId: string, status?: string) {
     const where: any = { companyId };
@@ -8,7 +14,8 @@ export class InvoiceService {
     return prisma.invoice.findMany({
       where,
       include: {
-        client: { select: { id: true, name: true, companyName: true } },
+        client: { select: { id: true, name: true, companyName: true, phone: true, email: true } },
+        items: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -17,7 +24,7 @@ export class InvoiceService {
   static async getById(id: string) {
     return prisma.invoice.findUnique({
       where: { id },
-      include: { client: true, company: true },
+      include: { client: true, company: true, items: true },
     });
   }
 
@@ -31,30 +38,56 @@ export class InvoiceService {
   static async create(data: {
     companyId: string;
     clientId?: string;
-    amount: number;
+    amount?: number;
     tax?: number;
     dueDate?: Date;
     notes?: string;
+    items?: CreateInvoiceItemInput[];
   }) {
     const invoiceNumber = await this.generateInvoiceNumber(data.companyId);
-    const total = (data.amount || 0) + (data.tax || 0);
+
+    let calculatedAmount = data.amount || 0;
+    const itemsData = (data.items || []).map((item) => {
+      const itemAmount = (item.quantity || 1) * (item.rate || 0);
+      return {
+        description: item.description || "Service / Item",
+        quantity: item.quantity || 1,
+        rate: item.rate || 0,
+        amount: itemAmount,
+      };
+    });
+
+    if (itemsData.length > 0) {
+      calculatedAmount = itemsData.reduce((sum, i) => sum + i.amount, 0);
+    }
+
+    const taxAmount = data.tax || 0;
+    const total = calculatedAmount + taxAmount;
+
     return prisma.invoice.create({
       data: {
         invoiceNumber,
-        amount: data.amount,
-        tax: data.tax || 0,
+        amount: calculatedAmount,
+        tax: taxAmount,
         total,
-        dueDate: data.dueDate || addMonths(new Date(), 1),
+        dueDate: data.dueDate ? new Date(data.dueDate) : addMonths(new Date(), 1),
         notes: data.notes,
         companyId: data.companyId,
         clientId: data.clientId,
+        ...(itemsData.length > 0
+          ? {
+              items: {
+                create: itemsData,
+              },
+            }
+          : {}),
       },
-      include: { client: true },
+      include: { client: true, items: true },
     });
   }
 
   static async update(id: string, data: any) {
-    return prisma.invoice.update({ where: { id }, data });
+    return prisma.invoice.update({ where: { id }, data, include: { client: true, items: true } });
   }
 
   static async markAsPaid(id: string) {

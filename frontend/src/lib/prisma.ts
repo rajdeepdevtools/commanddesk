@@ -15,11 +15,10 @@ const pool = new Pool({
   connectionString,
   // Supabase requires SSL for remote connections.
   ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
-  // Next dev reloads create many short-lived clients; without a cap the pool
-  // exhausts Supabase's connection limit and every request starts queueing.
   max: 10,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 20_000,
+  keepAlive: true,
 });
 const adapter = new PrismaPg(pool);
 

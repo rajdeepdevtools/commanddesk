@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { Send, Loader2, User as UserIcon, MoreVertical, Phone, Video } from "lucide-react";
+import { Send, Loader as Loader2, User as UserIcon, MoreVertical, Phone, Video } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 

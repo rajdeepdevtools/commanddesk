@@ -59,20 +59,31 @@ export async function POST(request: Request) {
 
     try {
       const supabase = await createClient();
-      const upload = await supabase.storage
+      let upload = await supabase.storage
         .from("avatars")
         .upload(objectPath, bytes, {
           contentType: file.type || "image/jpeg",
           cacheControl: "3600",
-          upsert: false,
+          upsert: true,
         });
+
+      if (upload.error && (upload.error.message?.toLowerCase().includes("not found") || upload.error.message?.toLowerCase().includes("bucket"))) {
+        await supabase.storage.createBucket("avatars", { public: true }).catch(() => null);
+        upload = await supabase.storage
+          .from("avatars")
+          .upload(objectPath, bytes, {
+            contentType: file.type || "image/jpeg",
+            cacheControl: "3600",
+            upsert: true,
+          });
+      }
 
       if (upload.error) throw upload.error;
       const { data } = supabase.storage.from("avatars").getPublicUrl(objectPath);
       avatarUrl = data.publicUrl;
     } catch (storageError) {
       console.warn(
-        "Avatar storage bucket upload failed, using Data URL fallback:",
+        "Avatar storage bucket upload failed, re-trying or using Data URL fallback:",
         storageError,
       );
 
@@ -96,7 +107,14 @@ export async function POST(request: Request) {
       // Ignore auth metadata sync error
     }
 
-    return NextResponse.json({ avatarUrl });
+    const response = NextResponse.json({ avatarUrl });
+    response.cookies.set("commanddesk_demo_image", avatarUrl, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return response;
   } catch (error: any) {
     console.error("POST /api/profile/avatar failed:", error);
     return NextResponse.json(

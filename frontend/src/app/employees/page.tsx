@@ -18,7 +18,7 @@ import {
   X,
   AlertTriangle,
   ShieldCheck,
-  Loader2,
+  Loader as Loader2,
   Check,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";

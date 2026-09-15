@@ -9,10 +9,11 @@ import {
   Users,
   Briefcase,
   Target,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Activity,
 } from "lucide-react";
+import { formatINR } from "@/lib/utils/format-currency";
 
 export default function AnalyticsPage() {
   const { data, isLoading } = useQuery({
@@ -34,9 +35,8 @@ export default function AnalyticsPage() {
     <DashboardLayout>
       <div className="space-y-7">
         {/* Header Banner */}
-        <section className="relative overflow-hidden rounded-[28px] bg-midnight-navy px-6 py-7 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:px-8">
-          <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary-indigo/50 blur-3xl" />
-          <div className="absolute right-32 top-10 h-32 w-32 rounded-full bg-premium-teal/30 blur-3xl" />
+        <section className="relative overflow-hidden rounded-[28px] bg-slate-900 px-6 py-7 text-white shadow-lg sm:px-8">
+          <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-indigo-500/30 blur-3xl" />
           <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur">
@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Total Employees</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal/10 text-teal">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600">
                 <Users className="h-4 w-4" />
               </div>
             </div>
@@ -69,18 +69,18 @@ export default function AnalyticsPage() {
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Active Projects</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600">
                 <Briefcase className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3 text-3xl font-bold text-foreground">{metrics.totalProjects}</div>
-            <span className="text-xs text-emerald-500">In progress</span>
+            <span className="text-xs text-emerald-600 font-semibold">In progress</span>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Total Clients</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
                 <Target className="h-4 w-4" />
               </div>
             </div>
@@ -91,14 +91,16 @@ export default function AnalyticsPage() {
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Net Revenue (MTD)</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-                <DollarSign className="h-4 w-4" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                <IndianRupee className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3 text-3xl font-bold text-foreground font-mono">
-              ${metrics.netIncome.toLocaleString()}
+              {formatINR(metrics.netIncome)}
             </div>
-            <span className="text-xs text-emerald-500">Month to date</span>
+            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-1">
+              <TrendingUp className="h-3.5 w-3.5" /> +14.2% vs last month
+            </span>
           </div>
         </div>
 

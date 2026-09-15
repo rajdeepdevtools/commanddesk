@@ -11,7 +11,7 @@ import {
   Command,
   Menu,
   LogOut,
-  Loader2,
+  Loader as Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -164,11 +164,11 @@ export function Header({ className, onMobileToggle }: HeaderProps) {
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
       const supabase = createClient();
-      await supabase.auth.signOut({ scope: "local" });
-      localStorage.removeItem("token");
-      router.replace("/login");
-      router.refresh();
+      await supabase.auth.signOut().catch(() => null);
+      localStorage.clear();
+      window.location.href = "/login";
     } catch {
       setIsSigningOut(false);
     }

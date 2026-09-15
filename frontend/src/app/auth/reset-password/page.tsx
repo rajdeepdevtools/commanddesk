@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { ShieldCheck, Lock, ArrowRight, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { ShieldCheck, Lock, ArrowRight, AlertTriangle, CheckCircle2, Loader as Loader2 } from "lucide-react";
 import Link from "next/link";
 import { SolubrixIcon } from "@/components/brand/logo";
 

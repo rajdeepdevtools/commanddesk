@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -21,7 +22,14 @@ interface RevenueChartProps {
 
 export function RevenueChart({ className, data = [], isLoading }: RevenueChartProps) {
   const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const hasData = data.some((point) => point.revenue > 0 || point.expenses > 0);
+
 
   const chartOptions: any = {
     chart: {
@@ -108,11 +116,12 @@ export function RevenueChart({ className, data = [], isLoading }: RevenueChartPr
         </div>
       </div>
       <div className="h-[300px]">
-        {isLoading ? (
+        {isLoading || !mounted ? (
           <div className="flex h-full items-center justify-center">
             <div className="h-full w-full animate-pulse rounded-xl bg-muted" />
           </div>
         ) : !hasData ? (
+
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <p className="text-sm font-medium text-foreground">No financial activity yet</p>
             <p className="max-w-xs text-xs text-muted-foreground">

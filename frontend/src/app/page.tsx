@@ -1,17 +1,9 @@
-import dynamic from "next/dynamic";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { AdminDashboard } from "@/components/dashboard/admin-dashboard";
+import { EmployeeDashboard } from "@/components/dashboard/employee-dashboard";
 import { getAccessContext } from "@/lib/saas/authorize";
 import { prisma } from "@/lib/prisma";
 
-const AdminDashboard = dynamic(
-  () => import("@/components/dashboard/admin-dashboard").then((mod) => mod.AdminDashboard),
-  { ssr: true }
-);
-
-const EmployeeDashboard = dynamic(
-  () => import("@/components/dashboard/employee-dashboard").then((mod) => mod.EmployeeDashboard),
-  { ssr: true }
-);
 
 export default async function Home() {
   let role = "EMPLOYEE";

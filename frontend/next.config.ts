@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
-  // Remove custom distDir to use default '.next'
+  turbopack: {
+    root: __dirname,
+  },
+  compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
+  serverExternalPackages: ["@prisma/client", "pg"],
 };
 
 export default nextConfig;
+

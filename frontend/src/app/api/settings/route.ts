@@ -8,72 +8,85 @@ export async function GET() {
     let userId = session?.user?.id;
     let companyId = session?.user?.companyId;
 
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst({
-        select: { id: true, companyId: true },
-      });
-      if (firstUser) {
-        userId = firstUser.id;
-        companyId = firstUser.companyId;
+    const isPlaceholderDb = !process.env.DATABASE_URL || process.env.DATABASE_URL.includes("your-project-ref");
+
+    let user = null;
+    let company = null;
+
+    if (!isPlaceholderDb) {
+      try {
+        if (!userId) {
+          const firstUser = await prisma.user.findFirst({
+            select: { id: true, companyId: true },
+          });
+          if (firstUser) {
+            userId = firstUser.id;
+            companyId = firstUser.companyId;
+          }
+        }
+
+        user = userId
+          ? await prisma.user.findUnique({
+              where: { id: userId },
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                avatarUrl: true,
+                twoFactorEnabled: true,
+                companyId: true,
+                role: true,
+              },
+            })
+          : null;
+
+        const targetCompanyId = companyId || user?.companyId;
+        company = targetCompanyId
+          ? await prisma.company.findUnique({
+              where: { id: targetCompanyId },
+              select: {
+                name: true,
+                gst: true,
+                email: true,
+                phone: true,
+                timezone: true,
+                country: true,
+              },
+            })
+          : await prisma.company.findFirst({
+              select: {
+                name: true,
+                gst: true,
+                email: true,
+                phone: true,
+                timezone: true,
+                country: true,
+              },
+            });
+      } catch {
+        // Fallback to default mock settings if DB connection fails
       }
     }
 
-    const user = userId
-      ? await prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            avatarUrl: true,
-            twoFactorEnabled: true,
-            companyId: true,
-            role: true,
-          },
-        })
-      : null;
-
-    const targetCompanyId = companyId || user?.companyId;
-    const company = targetCompanyId
-      ? await prisma.company.findUnique({
-          where: { id: targetCompanyId },
-          select: {
-            name: true,
-            gst: true,
-            email: true,
-            phone: true,
-            timezone: true,
-            country: true,
-          },
-        })
-      : await prisma.company.findFirst({
-          select: {
-            name: true,
-            gst: true,
-            email: true,
-            phone: true,
-            timezone: true,
-            country: true,
-          },
-        });
+    const sessionUser = session?.user;
 
     const settings = {
       profile: {
-        firstName: user?.firstName ?? "Workspace",
-        lastName: user?.lastName ?? "Owner",
-        fullName: `${user?.firstName ?? "Workspace"} ${user?.lastName ?? "Owner"}`.trim(),
-        email: user?.email ?? "admin@commanddesk.demo",
+        firstName: user?.firstName ?? sessionUser?.name?.trim().split(" ")[0] ?? "Vishal",
+        lastName: user?.lastName ?? sessionUser?.name?.trim().split(" ").slice(1).join(" ") ?? "Maurya",
+        fullName: `${user?.firstName ?? sessionUser?.name?.trim().split(" ")[0] ?? "Vishal"} ${user?.lastName ?? sessionUser?.name?.trim().split(" ").slice(1).join(" ") ?? "Maurya"}`.trim(),
+        email: user?.email ?? sessionUser?.email ?? "rajdeepdevtools@gmail.com",
         phone: user?.phone ?? "",
-        avatarUrl: user?.avatarUrl ?? null,
-        role: user?.role ?? "ORGANIZATION_OWNER",
+        avatarUrl: user?.avatarUrl ?? sessionUser?.image ?? null,
+        role: user?.role ?? sessionUser?.role ?? "SUPER_ADMIN",
         timezone: company?.timezone ?? "Asia/Kolkata",
       },
       organization: {
-        companyName: company?.name ?? "CommandDesk Workspace",
-        taxId: company?.gst ?? "",
-        email: company?.email ?? "",
-        phone: company?.phone ?? "",
+        companyName: company?.name ?? sessionUser?.companyName ?? "CommandDesk Enterprise OS",
+        taxId: company?.gst ?? "GSTIN29ABCDE1234F1Z5",
+        email: company?.email ?? sessionUser?.email ?? "rajdeepdevtools@gmail.com",
+        phone: company?.phone ?? "+91 98765 43210",
         timezone: company?.timezone ?? "Asia/Kolkata",
         country: company?.country ?? "India",
       },
@@ -90,20 +103,20 @@ export async function GET() {
     return NextResponse.json({
       settings: {
         profile: {
-          firstName: "Workspace",
-          lastName: "Owner",
-          fullName: "Workspace Owner",
-          email: "admin@commanddesk.demo",
+          firstName: "Vishal",
+          lastName: "Maurya",
+          fullName: "Vishal Maurya",
+          email: "rajdeepdevtools@gmail.com",
           phone: "",
           avatarUrl: null,
-          role: "ORGANIZATION_OWNER",
+          role: "SUPER_ADMIN",
           timezone: "Asia/Kolkata",
         },
         organization: {
-          companyName: "CommandDesk Workspace",
-          taxId: "",
-          email: "",
-          phone: "",
+          companyName: "CommandDesk Enterprise OS",
+          taxId: "GSTIN29ABCDE1234F1Z5",
+          email: "rajdeepdevtools@gmail.com",
+          phone: "+91 98765 43210",
           timezone: "Asia/Kolkata",
           country: "India",
         },
@@ -143,8 +156,9 @@ export async function PATCH(request: Request) {
     };
 
     if (body.scope === "profile") {
-      const firstName = body.firstName?.trim() || "Workspace";
-      const lastName = body.lastName?.trim() || "Owner";
+      const firstName = body.firstName?.trim() || "Vishal";
+      const lastName = body.lastName?.trim() || "Maurya";
+      const fullName = `${firstName} ${lastName}`.trim();
 
       if (userId) {
         await prisma.user.update({
@@ -156,11 +170,19 @@ export async function PATCH(request: Request) {
           },
         }).catch(() => null);
       }
-      return NextResponse.json({ saved: true });
+
+      const response = NextResponse.json({ saved: true });
+      response.cookies.set("commanddesk_demo_name", fullName, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+      return response;
     }
 
     if (body.scope === "organization") {
-      const companyName = body.companyName?.trim() || "CommandDesk Workspace";
+      const companyName = body.companyName?.trim() || "CommandDesk Enterprise OS";
 
       const targetCompanyId = companyId || (await prisma.company.findFirst({ select: { id: true } }))?.id;
 
@@ -177,7 +199,15 @@ export async function PATCH(request: Request) {
           },
         }).catch(() => null);
       }
-      return NextResponse.json({ saved: true });
+
+      const response = NextResponse.json({ saved: true });
+      response.cookies.set("commanddesk_demo_company_name", companyName, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+      return response;
     }
 
     return NextResponse.json({ saved: true });

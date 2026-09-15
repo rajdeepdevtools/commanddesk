@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader as Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
 export default function Loading() {

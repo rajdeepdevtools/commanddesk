@@ -151,6 +151,7 @@ model User {
   memberships      CompanyMembership[]
   auditEvents      AuditLog[]          @relation("AuditActor")
   apiKeysCreated   ApiKey[]            @relation("ApiKeyCreator")
+  createdPayrollPayments PayrollPayment[] @relation("PayrollPaymentCreator")
 
   interviews       Interview[]
   managedWarehouses Warehouse[]
@@ -363,6 +364,7 @@ model Payroll {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
+  payments PayrollPayment[]
 }
 
 model Asset {
@@ -549,6 +551,7 @@ model Invoice {
   companyId String
   client    Client? @relation(fields: [clientId], references: [id])
   clientId  String?
+  items     InvoiceItem[]
 }
 
 model Expense {
@@ -965,3 +968,35 @@ model StockMovement {
   actor  User          @relation(fields: [actorId], references: [id])
   actorId String
 }
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  description String
+  quantity    Int      @default(1)
+  rate        Float    @default(0)
+  amount      Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+
+  @@index([invoiceId])
+}
+
+model PayrollPayment {
+  id          String   @id @default(cuid())
+  amount      Float
+  paymentDate DateTime @default(now())
+  paymentMode String   @default("BANK_TRANSFER")
+  reference   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  payroll     Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  payrollId   String
+  createdBy   User?   @relation("PayrollPaymentCreator", fields: [createdById], references: [id])
+  createdById String?
+
+  @@index([payrollId])
+}
+

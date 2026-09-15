@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   Mail,
   AlertTriangle,
-  Loader2,
+  Loader as Loader2,
   ArrowRight,
   RefreshCw,
   KeyRound,

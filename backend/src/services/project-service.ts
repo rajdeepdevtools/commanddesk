@@ -1,0 +1,85 @@
+import { prisma } from "@/prisma";
+import { EmailService } from "./email/email-service";
+import { getNewProjectTemplate } from "./email/templates";
+
+export class ProjectService {
+  static async getAll(companyId: string) {
+    return prisma.project.findMany({
+      where: { companyId },
+      include: {
+        lead: { select: { id: true, firstName: true, lastName: true } },
+        _count: { select: { tasks: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  static async getById(id: string) {
+    return prisma.project.findUnique({
+      where: { id },
+      include: {
+        lead: { select: { id: true, firstName: true, lastName: true, email: true } },
+        tasks: {
+          include: { assignee: { select: { id: true, firstName: true, lastName: true } } },
+          orderBy: { createdAt: "desc" },
+        },
+        milestones: true,
+      },
+    });
+  }
+
+  static async create(data: {
+    name: string; description?: string; companyId: string;
+    leadId: string; startDate?: Date; endDate?: Date; budget?: number;
+    priority?: string; color?: string; isBillable?: boolean;
+  }) {
+    const newProject = await prisma.project.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        companyId: data.companyId,
+        leadId: data.leadId,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        budget: data.budget,
+        priority: data.priority as any || "MEDIUM",
+        color: data.color,
+        isBillable: data.isBillable ?? true,
+      },
+      include: { lead: { select: { id: true, firstName: true, lastName: true, email: true } } },
+    });
+
+    if (newProject.lead?.email) {
+      EmailService.sendMail({
+        to: newProject.lead.email,
+        subject: `New Project Assigned: ${newProject.name} 🚀`,
+        html: getNewProjectTemplate(newProject.name, newProject.lead.firstName, newProject.startDate?.toISOString()),
+      }).catch(console.error);
+    }
+
+    return newProject;
+  }
+
+  static async update(id: string, data: any) {
+    if (data.leadId === "") data.leadId = null;
+    return prisma.project.update({ where: { id }, data });
+  }
+
+  static async delete(id: string) {
+    return prisma.project.delete({ where: { id } });
+  }
+
+  static async getStats(companyId: string) {
+    const [total, active, completed, byPriority] = await Promise.all([
+      prisma.project.count({ where: { companyId } }),
+      prisma.project.count({ where: { companyId, status: "ACTIVE" } }),
+      prisma.project.count({ where: { companyId, status: "COMPLETED" } }),
+      prisma.project.groupBy({
+        by: ["priority"],
+        where: { companyId },
+        _count: true,
+      }),
+    ]);
+    return { total, active, completed, byPriority };
+  }
+}

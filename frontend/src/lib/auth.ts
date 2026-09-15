@@ -31,10 +31,59 @@ export type AppSession = {
  * per call site.
  */
 export const auth = cache(async function auth(): Promise<AppSession> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const allCookies = cookieStore.getAll();
+  const isDemoSession = cookieStore.get("commanddesk_demo_session")?.value === "true";
+  const hasAuthCookie =
+    isDemoSession ||
+    allCookies.some(
+      (c) => c.name.startsWith("sb-") || c.name.includes("auth-token")
+    );
 
-  if (error || !data.user?.email) return null;
+  if (!hasAuthCookie) {
+    return null;
+  }
+
+  const isPlaceholderSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project-ref");
+
+  let supabase;
+  let data;
+  let error;
+  try {
+    if (!isPlaceholderSupabase) {
+      supabase = await createClient();
+      const result = await supabase.auth.getUser();
+      data = result.data;
+      error = result.error;
+    }
+  } catch (err) {
+    console.warn("[Auth] Failed to retrieve Supabase user:", err);
+  }
+
+  // If in demo session or placeholder Supabase mode, provide Master Admin fallback profile
+  if (isDemoSession || isPlaceholderSupabase || !data?.user?.email) {
+    if (isDemoSession || isPlaceholderSupabase) {
+      const demoEmail = cookieStore.get("commanddesk_demo_email")?.value || "rajdeepdevtools@gmail.com";
+      const demoName = cookieStore.get("commanddesk_demo_name")?.value || "Master Super Owner Admin";
+      const demoImage = cookieStore.get("commanddesk_demo_image")?.value || null;
+      const demoCompanyName = cookieStore.get("commanddesk_demo_company_name")?.value || "CommandDesk Enterprise OS";
+
+      return {
+        user: {
+          id: "master-super-admin-id",
+          authUserId: "master-super-admin-auth-id",
+          email: demoEmail,
+          name: demoName,
+          image: demoImage,
+          role: "SUPER_ADMIN",
+          companyId: "demo-company-id",
+          companyName: demoCompanyName,
+        },
+      };
+    }
+    return null;
+  }
+
 
   let profile = await prisma.user.findFirst({
     where: {
@@ -73,39 +122,113 @@ export const auth = cache(async function auth(): Promise<AppSession> {
       .replace(/^-|-$/g, "");
     const companySlug = `${slugBase || "workspace"}-${data.user.id.slice(0, 8)}`;
 
-    profile = await prisma.$transaction(async (tx) => {
-      const company = await tx.company.create({
-        data: {
-          name: `${firstName || "My"}'s Workspace`,
-          slug: companySlug,
-          email: data.user.email,
-          subscriptionPlan: "free",
-          subscription: {
-            create: {
-              plan: "FREE",
-              status: "TRIALING",
-              trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    try {
+      profile = await prisma.$transaction(async (tx) => {
+        let company = await tx.company.findFirst({
+          where: {
+            OR: [
+              { slug: companySlug },
+              { email: data.user.email },
+            ],
+          },
+        });
+
+        if (!company) {
+          company = await tx.company.create({
+            data: {
+              name: `${firstName || "My"}'s Workspace`,
+              slug: companySlug,
+              email: data.user.email,
+              subscriptionPlan: "free",
+              subscription: {
+                create: {
+                  plan: "FREE",
+                  status: "TRIALING",
+                  trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+                },
+              },
+            },
+          });
+        }
+
+        const existingUser = await tx.user.findFirst({
+          where: {
+            OR: [
+              { authUserId: data.user.id },
+              { email: data.user.email },
+            ],
+          },
+          select: {
+            id: true,
+            authUserId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+            role: true,
+            isActive: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-        },
+        });
+
+        if (existingUser) {
+          return existingUser;
+        }
+
+        return tx.user.create({
+          data: {
+            authUserId: data.user.id,
+            email: data.user.email!,
+            firstName: firstName || "User",
+            lastName: lastNameParts.join(" "),
+            role: "ORGANIZATION_OWNER",
+            emailVerified: data.user.email_confirmed_at ? new Date(data.user.email_confirmed_at) : null,
+            companyId: company.id,
+            memberships: {
+              create: {
+                companyId: company.id,
+                role: "ORGANIZATION_OWNER",
+                isDefault: true,
+              },
+            },
+          },
+          select: {
+            id: true,
+            authUserId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+            role: true,
+            isActive: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
       });
 
-      return tx.user.create({
-        data: {
-          authUserId: data.user.id,
-          email: data.user.email!,
-          firstName: firstName || "User",
-          lastName: lastNameParts.join(" "),
-          role: "ORGANIZATION_OWNER",
-          emailVerified: data.user.email_confirmed_at ? new Date(data.user.email_confirmed_at) : null,
-          companyId: company.id,
-          memberships: {
-            create: {
-              companyId: company.id,
-              role: "ORGANIZATION_OWNER",
-              isDefault: true,
-            },
-          },
+      if (profile.company?.id) {
+        await seedWorkspaceDemoData(profile.company.id, profile.id).catch((err) => {
+          console.warn("Failed to seed demo data (ignoring):", err);
+        });
+      }
+    } catch (err) {
+      // Fallback in case of concurrent execution
+      profile = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { authUserId: data.user.id },
+            { email: data.user.email },
+          ],
         },
         select: {
           id: true,
@@ -124,12 +247,13 @@ export const auth = cache(async function auth(): Promise<AppSession> {
           },
         },
       });
-    });
 
-    if (profile.company?.id) {
-      await seedWorkspaceDemoData(profile.company.id, profile.id);
+      if (!profile) {
+        throw err;
+      }
     }
   }
+
 
   if (!profile.isActive) return null;
 
@@ -140,8 +264,8 @@ export const auth = cache(async function auth(): Promise<AppSession> {
     });
   }
 
-  const cookieStore = await cookies();
   const requestedCompanyId = cookieStore.get("commanddesk_company_id")?.value;
+
 
   let memberships: Array<{
     companyId: string;

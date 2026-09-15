@@ -22,7 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  Loader2,
+  Loader as Loader2,
   LogOut,
   X,
   Package,
@@ -195,14 +195,13 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) 
     setSignOutError("");
 
     try {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
       const supabase = createClient();
-      const { error } = await supabase.auth.signOut({ scope: "local" });
-      if (error) throw error;
+      await supabase.auth.signOut().catch(() => null);
 
-      localStorage.removeItem("token");
+      localStorage.clear();
       onMobileClose?.();
-      router.replace("/login");
-      router.refresh();
+      window.location.href = "/login";
     } catch (error) {
       setSignOutError(error instanceof Error ? error.message : "Unable to sign out.");
       setIsSigningOut(false);
