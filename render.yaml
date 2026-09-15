@@ -12,7 +12,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: https://commanddesk-gold.vercel.app
+        value: https://commanddesk-umber.vercel.app
       - key: NEXTAUTH_SECRET
         generateValue: true
       - key: DATABASE_URL
