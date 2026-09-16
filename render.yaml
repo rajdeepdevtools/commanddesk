@@ -18,7 +18,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: SELF_URL
-        sync: false
+        value: https://commanddesk-backend.onrender.com
       - key: ENABLE_KEEP_ALIVE
         value: "true"
       - key: KEEP_ALIVE_INTERVAL_MINUTES
