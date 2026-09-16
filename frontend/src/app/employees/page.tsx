@@ -63,6 +63,7 @@ export default function EmployeesPage() {
 
   const [avatarUploadError, setAvatarUploadError] = useState("");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const initialFormState = {
     firstName: "",
@@ -172,6 +173,7 @@ export default function EmployeesPage() {
     });
     setAadhaarUploadError("");
     setAvatarUploadError("");
+    setFormError("");
     setIsFormOpen(true);
   };
 
@@ -180,6 +182,7 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setAadhaarUploadError("");
     setAvatarUploadError("");
+    setFormError("");
     setForm(initialFormState);
   };
 
@@ -269,6 +272,7 @@ export default function EmployeesPage() {
     mutationFn: () =>
       apiClient.post("/employees", {
         ...form,
+        email: form.email.trim().toLowerCase(),
         departmentId: form.departmentIds[0] || form.departmentId || undefined,
         departmentIds: form.departmentIds,
         designation: form.designation || undefined,
@@ -282,8 +286,17 @@ export default function EmployeesPage() {
         panNumber: form.panNumber || undefined,
       }),
     onSuccess: async () => {
+      setFormError("");
       await queryClient.invalidateQueries({ queryKey: ["employees"] });
       handleCloseForm();
+    },
+    onError: (err: any) => {
+      setFormError(
+        err?.response?.data?.error ||
+        err?.response?.data?.details ||
+        err?.message ||
+        "Failed to create employee. Please check the email address and details."
+      );
     },
   });
 
@@ -292,7 +305,7 @@ export default function EmployeesPage() {
       apiClient.patch(`/employees/${editingEmployee?.id}`, {
         firstName: form.firstName,
         lastName: form.lastName,
-        email: form.email,
+        email: form.email.trim().toLowerCase(),
         role: form.role,
         departmentId: form.departmentIds[0] || form.departmentId || undefined,
         departmentIds: form.departmentIds,
@@ -308,8 +321,17 @@ export default function EmployeesPage() {
         ...(form.password ? { password: form.password } : {}),
       }),
     onSuccess: async () => {
+      setFormError("");
       await queryClient.invalidateQueries({ queryKey: ["employees"] });
       handleCloseForm();
+    },
+    onError: (err: any) => {
+      setFormError(
+        err?.response?.data?.error ||
+        err?.response?.data?.details ||
+        err?.message ||
+        "Failed to update employee details."
+      );
     },
   });
 
@@ -386,13 +408,23 @@ export default function EmployeesPage() {
               </button>
             </div>
 
+            {formError && (
+              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-medium text-rose-700 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                <span>{formError}</span>
+              </div>
+            )}
+
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                 First name
                 <input
                   required
                   value={form.firstName}
-                  onChange={(event) => setForm({ ...form, firstName: event.target.value })}
+                  onChange={(event) => {
+                    setFormError("");
+                    setForm({ ...form, firstName: event.target.value });
+                  }}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950"
                   placeholder="Aarav"
                 />
@@ -408,14 +440,17 @@ export default function EmployeesPage() {
                 />
               </label>
               <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-                Work email
+                Email address
                 <input
                   required
                   type="email"
                   value={form.email}
-                  onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  onChange={(event) => {
+                    setFormError("");
+                    setForm({ ...form, email: event.target.value });
+                  }}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-primary-indigo focus:ring-4 focus:ring-primary-indigo/10 dark:border-slate-700 dark:bg-slate-950"
-                  placeholder="aarav@company.com"
+                  placeholder="aarav@gmail.com or aarav@company.com"
                 />
               </label>
               <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">

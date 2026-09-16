@@ -6,6 +6,7 @@ export async function GET() {
   try {
     const session = await auth();
     let userId = session?.user?.id;
+    const email = session?.user?.email || "rajdeepdevtools@gmail.com";
     let companyId = session?.user?.companyId;
 
     const isPlaceholderDb = !process.env.DATABASE_URL || process.env.DATABASE_URL.includes("your-project-ref");
@@ -15,31 +16,46 @@ export async function GET() {
 
     if (!isPlaceholderDb) {
       try {
-        if (!userId) {
+        user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              ...(userId && userId !== "master-super-admin-id" ? [{ id: userId }] : []),
+              { email },
+            ],
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+            twoFactorEnabled: true,
+            companyId: true,
+            role: true,
+          },
+        });
+
+        if (!user && (!userId || userId === "master-super-admin-id")) {
           const firstUser = await prisma.user.findFirst({
-            select: { id: true, companyId: true },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              avatarUrl: true,
+              twoFactorEnabled: true,
+              companyId: true,
+              role: true,
+            },
           });
           if (firstUser) {
+            user = firstUser;
             userId = firstUser.id;
             companyId = firstUser.companyId;
           }
         }
-
-        user = userId
-          ? await prisma.user.findUnique({
-              where: { id: userId },
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-                phone: true,
-                avatarUrl: true,
-                twoFactorEnabled: true,
-                companyId: true,
-                role: true,
-              },
-            })
-          : null;
 
         const targetCompanyId = companyId || user?.companyId;
         company = targetCompanyId
@@ -73,9 +89,11 @@ export async function GET() {
 
     const settings = {
       profile: {
-        firstName: user?.firstName ?? sessionUser?.name?.trim().split(" ")[0] ?? "Vishal",
-        lastName: user?.lastName ?? sessionUser?.name?.trim().split(" ").slice(1).join(" ") ?? "Maurya",
-        fullName: `${user?.firstName ?? sessionUser?.name?.trim().split(" ")[0] ?? "Vishal"} ${user?.lastName ?? sessionUser?.name?.trim().split(" ").slice(1).join(" ") ?? "Maurya"}`.trim(),
+        firstName: user?.firstName ?? sessionUser?.name?.trim().split(" ")[0] ?? "Master",
+        lastName: user?.lastName ?? sessionUser?.name?.trim().split(" ").slice(1).join(" ") ?? "Admin",
+        fullName: user
+          ? `${user.firstName} ${user.lastName}`.trim()
+          : (sessionUser?.name || "Master Super Owner Admin"),
         email: user?.email ?? sessionUser?.email ?? "rajdeepdevtools@gmail.com",
         phone: user?.phone ?? "",
         avatarUrl: user?.avatarUrl ?? sessionUser?.image ?? null,
@@ -103,9 +121,9 @@ export async function GET() {
     return NextResponse.json({
       settings: {
         profile: {
-          firstName: "Vishal",
-          lastName: "Maurya",
-          fullName: "Vishal Maurya",
+          firstName: "Master",
+          lastName: "Admin",
+          fullName: "Master Super Owner Admin",
           email: "rajdeepdevtools@gmail.com",
           phone: "",
           avatarUrl: null,
@@ -133,15 +151,8 @@ export async function PATCH(request: Request) {
   try {
     const session = await auth();
     let userId = session?.user?.id;
+    const targetEmail = session?.user?.email || "rajdeepdevtools@gmail.com";
     let companyId = session?.user?.companyId;
-
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst({ select: { id: true, companyId: true } });
-      if (firstUser) {
-        userId = firstUser.id;
-        companyId = firstUser.companyId;
-      }
-    }
 
     const body = (await request.json()) as {
       scope?: "profile" | "organization";
@@ -156,17 +167,37 @@ export async function PATCH(request: Request) {
     };
 
     if (body.scope === "profile") {
-      const firstName = body.firstName?.trim() || "Vishal";
-      const lastName = body.lastName?.trim() || "Maurya";
+      const firstName = body.firstName?.trim() || "Master";
+      const lastName = body.lastName?.trim() || "Admin";
       const fullName = `${firstName} ${lastName}`.trim();
 
-      if (userId) {
+      // Find user by valid ID or by target email
+      let targetUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(userId && userId !== "master-super-admin-id" ? [{ id: userId }] : []),
+            { email: targetEmail },
+          ],
+        },
+      });
+
+      if (targetUser) {
         await prisma.user.update({
-          where: { id: userId },
+          where: { id: targetUser.id },
           data: {
             firstName,
             lastName,
             phone: body.phone?.trim() || null,
+          },
+        }).catch(() => null);
+      } else {
+        await prisma.user.create({
+          data: {
+            email: targetEmail,
+            firstName,
+            lastName,
+            phone: body.phone?.trim() || null,
+            role: "SUPER_ADMIN",
           },
         }).catch(() => null);
       }

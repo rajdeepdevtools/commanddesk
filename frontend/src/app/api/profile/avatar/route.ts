@@ -91,10 +91,31 @@ export async function POST(request: Request) {
       avatarUrl = `data:${file.type || "image/jpeg"};base64,${buffer.toString("base64")}`;
     }
 
-    if (userId) {
+    const targetEmail = session?.user?.email || "rajdeepdevtools@gmail.com";
+
+    let targetUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(userId && userId !== "master-super-admin-id" ? [{ id: userId }] : []),
+          { email: targetEmail },
+        ],
+      },
+    });
+
+    if (targetUser) {
       await prisma.user.update({
-        where: { id: userId },
+        where: { id: targetUser.id },
         data: { avatarUrl },
+      }).catch(() => null);
+    } else {
+      await prisma.user.create({
+        data: {
+          email: targetEmail,
+          firstName: "Master",
+          lastName: "Admin",
+          avatarUrl,
+          role: "SUPER_ADMIN",
+        },
       }).catch(() => null);
     }
 

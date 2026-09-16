@@ -153,6 +153,13 @@ export async function POST(request: Request) {
     }
 
     const email = body.email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address (e.g. employee@gmail.com or employee@company.com)" },
+        { status: 400 },
+      );
+    }
     const rawRole = body.role.trim();
     const isSystemRole = SYSTEM_USER_ROLES.has(rawRole);
     const role = isSystemRole ? rawRole : "EMPLOYEE";

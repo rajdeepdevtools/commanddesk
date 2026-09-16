@@ -60,23 +60,51 @@ export const auth = cache(async function auth(): Promise<AppSession> {
     console.warn("[Auth] Failed to retrieve Supabase user:", err);
   }
 
-  // If in demo session or placeholder Supabase mode, provide Master Admin fallback profile
+  // If in demo session or placeholder Supabase mode, provide Master Admin profile
   if (isDemoSession || isPlaceholderSupabase || !data?.user?.email) {
     if (isDemoSession || isPlaceholderSupabase) {
       const demoEmail = cookieStore.get("commanddesk_demo_email")?.value || "rajdeepdevtools@gmail.com";
-      const demoName = cookieStore.get("commanddesk_demo_name")?.value || "Master Super Owner Admin";
-      const demoImage = cookieStore.get("commanddesk_demo_image")?.value || null;
-      const demoCompanyName = cookieStore.get("commanddesk_demo_company_name")?.value || "CommandDesk Enterprise OS";
+
+      let dbUser = null;
+      try {
+        dbUser = await prisma.user.findFirst({
+          where: { email: demoEmail },
+          select: {
+            id: true,
+            authUserId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+            role: true,
+            companyId: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+      } catch (dbErr) {
+        // Fallback if DB is disconnected
+      }
+
+      const demoName = dbUser
+        ? `${dbUser.firstName} ${dbUser.lastName}`.trim()
+        : cookieStore.get("commanddesk_demo_name")?.value || "Master Super Owner Admin";
+      const demoImage = dbUser?.avatarUrl ?? cookieStore.get("commanddesk_demo_image")?.value ?? null;
+      const demoCompanyName = dbUser?.company?.name || cookieStore.get("commanddesk_demo_company_name")?.value || "CommandDesk Enterprise OS";
 
       return {
         user: {
-          id: "master-super-admin-id",
-          authUserId: "master-super-admin-auth-id",
+          id: dbUser?.id || "master-super-admin-id",
+          authUserId: dbUser?.authUserId || "master-super-admin-auth-id",
           email: demoEmail,
           name: demoName,
           image: demoImage,
-          role: "SUPER_ADMIN",
-          companyId: "demo-company-id",
+          role: dbUser?.role || "SUPER_ADMIN",
+          companyId: dbUser?.companyId || "demo-company-id",
           companyName: demoCompanyName,
         },
       };
