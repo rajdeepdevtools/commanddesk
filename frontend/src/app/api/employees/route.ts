@@ -153,10 +153,10 @@ export async function POST(request: Request) {
     }
 
     const email = body.email.trim().toLowerCase();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
-        { error: "Please enter a valid email address (e.g. employee@gmail.com or employee@company.com)" },
+        { error: "Please enter a valid email address (e.g. employee@company.com or name@domain.com)" },
         { status: 400 },
       );
     }
@@ -166,10 +166,11 @@ export async function POST(request: Request) {
     const designation = body.designation?.trim() || (!isSystemRole ? rawRole : "Team Member");
     const password = body.password || "TempPass123!";
 
-    const deptIds = body.departmentIds && Array.isArray(body.departmentIds)
+    const rawDeptIds = body.departmentIds && Array.isArray(body.departmentIds)
       ? body.departmentIds
       : body.departmentId ? [body.departmentId] : [];
-    const primaryDeptId = deptIds[0] || body.departmentId || null;
+    const deptIds = rawDeptIds.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean);
+    const primaryDeptId = deptIds[0] || (body.departmentId?.trim() ? body.departmentId.trim() : null);
 
     let authUserId: string | undefined;
     try {
@@ -189,6 +190,14 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
+      if (existingUser.isActive) {
+        return NextResponse.json(
+          { error: `An employee with email '${email}' already exists in the workspace.` },
+          { status: 400 },
+        );
+      }
+
+      // If user was inactive, reactivate and update their profile
       const updatedUser = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
@@ -294,8 +303,14 @@ export async function POST(request: Request) {
     return NextResponse.json(responsePayload, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/employees error:", error);
+    if (error?.code === "P2002") {
+      return NextResponse.json(
+        { error: "An account with this email address already exists." },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
-      { error: "Unable to create employee", details: error?.message || String(error) },
+      { error: error?.message || "Unable to create employee", details: error?.message || String(error) },
       { status: 500 }
     );
   }

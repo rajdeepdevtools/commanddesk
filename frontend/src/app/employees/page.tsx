@@ -291,12 +291,12 @@ export default function EmployeesPage() {
       handleCloseForm();
     },
     onError: (err: any) => {
-      setFormError(
+      const errorMsg =
         err?.response?.data?.error ||
         err?.response?.data?.details ||
         err?.message ||
-        "Failed to create employee. Please check the email address and details."
-      );
+        "Failed to create employee. Please check the email address and details.";
+      setFormError(errorMsg);
     },
   });
 
@@ -326,12 +326,12 @@ export default function EmployeesPage() {
       handleCloseForm();
     },
     onError: (err: any) => {
-      setFormError(
+      const errorMsg =
         err?.response?.data?.error ||
         err?.response?.data?.details ||
         err?.message ||
-        "Failed to update employee details."
-      );
+        "Failed to update employee details.";
+      setFormError(errorMsg);
     },
   });
 

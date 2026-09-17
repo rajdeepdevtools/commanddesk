@@ -58,8 +58,8 @@ export class EmployeeService {
         avatarUrl: data.avatarUrl,
         role: data.role as any,
         companyId: data.companyId,
-        departmentId: data.departmentId,
-        departmentIds: data.departmentIds || (data.departmentId ? [data.departmentId] : []),
+        departmentId: data.departmentId?.trim() || null,
+        departmentIds: (data.departmentIds || (data.departmentId ? [data.departmentId] : [])).map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean),
         employeeProfile: {
           create: {
             employeeId: `EMP${Date.now()}`,
