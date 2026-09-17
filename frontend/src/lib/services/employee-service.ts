@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { EmailService } from "../email/email-service";
 import { getWelcomeEmailTemplate } from "../email/templates";
 
+import { hashPassword } from "../password-utils";
+
 export class EmployeeService {
   static async getAll(companyId: string) {
     return prisma.user.findMany({
@@ -35,6 +37,7 @@ export class EmployeeService {
     lastName: string;
     role: string;
     companyId: string;
+    password?: string;
     departmentId?: string;
     departmentIds?: string[];
     designation?: string;
@@ -48,9 +51,14 @@ export class EmployeeService {
     ifscCode?: string;
     panNumber?: string;
   }) {
+    const plainPassword = data.password || "TempPass123!";
+    const passwordHash = hashPassword(plainPassword);
+
     const newEmployee = await prisma.user.create({
       data: {
         email: data.email,
+        passwordHash,
+        mustChangePassword: true,
         authUserId: data.authUserId,
         firstName: data.firstName,
         lastName: data.lastName,

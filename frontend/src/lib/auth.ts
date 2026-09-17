@@ -68,7 +68,7 @@ export const auth = cache(async function auth(): Promise<AppSession> {
       let dbUser = null;
       try {
         dbUser = await prisma.user.findFirst({
-          where: { email: demoEmail },
+          where: { email: { equals: demoEmail, mode: "insensitive" } },
           select: {
             id: true,
             authUserId: true,

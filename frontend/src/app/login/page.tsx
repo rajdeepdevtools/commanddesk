@@ -145,17 +145,23 @@ export default function LoginPage() {
     });
   };
 
-  const handleDemoAdminLogin = async (customEmail?: string) => {
+  const handleDemoAdminLogin = async (customEmail?: string, customPassword?: string) => {
     setIsLoading(true);
     setError("");
     try {
       const loginEmail = customEmail || email || "rajdeepdevtools@gmail.com";
+      const loginPassword = customPassword || password || "";
       const res = await fetch("/api/auth/demo-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail }),
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        if (data.mustChangePassword) {
+          window.location.href = "/auth/set-password";
+          return;
+        }
         const nextParam =
           typeof window !== "undefined"
             ? new URLSearchParams(window.location.search).get("next")
@@ -169,7 +175,7 @@ export default function LoginPage() {
             : "/";
         window.location.href = destination;
       } else {
-        setError("Unable to authenticate Master Super Owner Admin session.");
+        setError(data.error || "Unable to authenticate account session.");
         setIsLoading(false);
       }
     } catch {
@@ -185,10 +191,8 @@ export default function LoginPage() {
     setResetSuccessMsg("");
 
     const isPlaceholderSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project-ref");
-    const isMasterAdmin = email.trim().toLowerCase() === "rajdeepdevtools@gmail.com";
-
-    if (isPlaceholderSupabase || isMasterAdmin) {
-      await handleDemoAdminLogin(email || "rajdeepdevtools@gmail.com");
+    if (isPlaceholderSupabase) {
+      await handleDemoAdminLogin(email, password);
       return;
     }
 
@@ -212,25 +216,8 @@ export default function LoginPage() {
           : "/";
       window.location.href = destination;
     } catch (caught) {
-      const msg =
-        caught instanceof Error ? caught.message : "Unable to authenticate.";
-      if (
-        msg.toLowerCase().includes("failed to fetch") ||
-        msg.toLowerCase().includes("fetch failed") ||
-        msg.toLowerCase().includes("networkerror") ||
-        msg.toLowerCase().includes("invalid login credentials")
-      ) {
-        // Fallback to Master Admin session if Supabase auth is unconfigured or user is not yet created in Supabase Auth
-        await handleDemoAdminLogin(email || "rajdeepdevtools@gmail.com");
-        return;
-      } else if (msg.toLowerCase().includes("email not confirmed")) {
-        setError(
-          "Your email address is not verified yet. Check your inbox or use password reset."
-        );
-      } else {
-        setError(msg);
-      }
-      setIsLoading(false);
+      // Fallback to local DB password verification if Supabase Auth is isolated
+      await handleDemoAdminLogin(email, password);
     }
   };
 
